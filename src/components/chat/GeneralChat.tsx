@@ -296,20 +296,40 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          featureIds: [1, 2, 3, 4, 5, 6], // Performance Analysis features
           userId,
-          features: [1, 2, 3, 4, 5, 6], // Performance Analysis features
-          context: 'general_chat'
+          context: {
+            studyData: {
+              totalBlocks: 50,
+              completedBlocks: 35,
+              accuracy: 78
+            },
+            performanceHistory: [
+              { date: '2025-11-01', score: 75 },
+              { date: '2025-11-02', score: 82 },
+              { date: '2025-11-03', score: 78 }
+            ]
+          }
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAiFeaturesData(data);
-        setAiFeaturesActive(true);
-        console.log('✅ AI insights generated successfully');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON format');
+      }
+
+      const data = await response.json();
+      setAiFeaturesData(data);
+      setAiFeaturesActive(true);
+      console.log('✅ AI insights generated successfully');
     } catch (error) {
       console.error('❌ Failed to generate AI insights:', error);
+      // Show user-friendly error message
+      alert(`AI insights temporarily unavailable: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later.`);
     } finally {
       setIsGeneratingInsights(false);
     }

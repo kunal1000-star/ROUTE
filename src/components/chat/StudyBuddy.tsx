@@ -264,21 +264,40 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          featureIds: [1, 2, 3, 4, 5, 6], // Performance Analysis features
           userId,
-          features: [1, 2, 3, 4, 5, 6], // Performance Analysis features
-          context: 'study_buddy',
-          includePersonalContext: true
+          context: {
+            studyData: {
+              totalBlocks: 50,
+              completedBlocks: 35,
+              accuracy: studentProfile?.accuracy || 78
+            },
+            performanceHistory: [
+              { date: '2025-11-01', score: 75 },
+              { date: '2025-11-02', score: 82 },
+              { date: '2025-11-03', score: studentProfile?.accuracy || 78 }
+            ]
+          }
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAiFeaturesData(data);
-        setAiFeaturesActive(true);
-        console.log('✅ StudyBuddy AI insights generated successfully');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON format');
+      }
+
+      const data = await response.json();
+      setAiFeaturesData(data);
+      setAiFeaturesActive(true);
+      console.log('✅ StudyBuddy AI insights generated successfully');
     } catch (error) {
       console.error('❌ Failed to generate StudyBuddy AI insights:', error);
+      // Show user-friendly error message
+      alert(`Study insights temporarily unavailable: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later.`);
     } finally {
       setIsGeneratingInsights(false);
     }

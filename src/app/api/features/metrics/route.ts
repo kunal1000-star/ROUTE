@@ -10,6 +10,16 @@ import { aiFeaturesEngine, FeatureCategory } from '@/lib/ai/ai-features-engine';
  */
 export async function GET(request: NextRequest) {
   try {
+    // Ensure AI Features Engine is initialized
+    if (!aiFeaturesEngine.getStatus().initialized) {
+      console.log('Initializing AI Features Engine...');
+      await aiFeaturesEngine.executeFeature({
+        featureId: 1,
+        userId: 'init-user',
+        context: {}
+      }).catch(() => {}); // Ignore errors during initialization
+    }
+
     const { searchParams } = new URL(request.url);
     const featureId = searchParams.get('featureId');
     const includeStatus = searchParams.get('includeStatus') === 'true';
@@ -70,9 +80,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Metrics retrieval error:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to retrieve metrics',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: 'AI Features Engine may be unavailable'
       },
       { status: 500 }
     );
@@ -85,6 +96,16 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Ensure AI Features Engine is initialized
+    if (!aiFeaturesEngine.getStatus().initialized) {
+      console.log('Initializing AI Features Engine...');
+      await aiFeaturesEngine.executeFeature({
+        featureId: 1,
+        userId: 'init-user',
+        context: {}
+      }).catch(() => {}); // Ignore errors during initialization
+    }
+
     const body = await request.json();
     const { featureId, enabled } = body;
 
@@ -120,9 +141,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Feature toggle error:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to toggle feature',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: 'AI Features Engine may be unavailable'
       },
       { status: 500 }
     );

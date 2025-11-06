@@ -1,26 +1,26 @@
 BLOCKWISE AI - API KEY TEST RESULTS
 ====================================
-Date: 11/6/2025
-Time: 5:05:30 AM
-
-✓ Cohere: SUCCESS (Embedding generated (1024 dimensions))
-  Response time: 265ms
+Date: 11/5/2025
+Time: 10:26:28 PM
 
 ✓ Groq: SUCCESS (Response received: "Hello.")
-  Response time: 313ms
-
-✓ Cerebras: SUCCESS (Response received: "Hello.")
-  Response time: 381ms
-
-✓ Gemini: SUCCESS (Response received: "Greetings!")
-  Response time: 598ms
+  Response time: 950ms
 
 ✓ Mistral: SUCCESS (Response received: "Hello!")
-  Response time: 596ms
+  Response time: 1387ms
+
+✓ Cohere: SUCCESS (Embedding generated (1024 dimensions))
+  Response time: 1538ms
+
+✓ Gemini: SUCCESS (Response received: "Greetings.")
+  Response time: 1707ms
 
 ✗ OpenRouter: FAILED (HTTP 401: User not found.)
-  Response time: 609ms
+  Response time: 1791ms
   Error: User not found.
+
+✓ Cerebras: SUCCESS (Response received: "Hello.")
+  Response time: 2003ms
 
 
 All providers working! ✓

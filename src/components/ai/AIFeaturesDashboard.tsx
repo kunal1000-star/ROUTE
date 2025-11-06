@@ -116,8 +116,18 @@ export default function AIFeaturesDashboard() {
     try {
       setLoading(true);
       
-      // Load metrics and status
+      // Load metrics and status with proper error handling
       const response = await fetch('/api/features/metrics?includeStatus=true');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON format');
+      }
+      
       const data = await response.json();
       
       if (data.featureMetrics) {
@@ -130,6 +140,16 @@ export default function AIFeaturesDashboard() {
 
       // Load features by category
       const featuresResponse = await fetch('/api/features/metrics');
+      
+      if (!featuresResponse.ok) {
+        throw new Error(`HTTP ${featuresResponse.status}: ${featuresResponse.statusText}`);
+      }
+      
+      const featuresContentType = featuresResponse.headers.get('content-type');
+      if (!featuresContentType || !featuresContentType.includes('application/json')) {
+        throw new Error('Features response is not JSON format');
+      }
+      
       const featuresData = await featuresResponse.json();
       
       if (featuresData.featuresByCategory) {
@@ -142,6 +162,13 @@ export default function AIFeaturesDashboard() {
 
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
+      // Set fallback data when API is unavailable
+      setStatus({
+        initialized: false,
+        totalFeatures: 22,
+        enabledFeatures: 0,
+        cachedEntries: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -172,6 +199,15 @@ export default function AIFeaturesDashboard() {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON format');
+      }
+      
       const result = await response.json();
       
       if (result.success) {
@@ -186,7 +222,7 @@ export default function AIFeaturesDashboard() {
 
     } catch (error) {
       console.error('Feature generation failed:', error);
-      alert('Feature generation failed. Please try again.');
+      alert(`Feature generation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     } finally {
       setGenerating(prev => ({ ...prev, [featureId]: false }));
     }
@@ -200,16 +236,27 @@ export default function AIFeaturesDashboard() {
         body: JSON.stringify({ featureId, enabled })
       });
 
-      if (response.ok) {
-        setFeatures(prev => prev.map(f => 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON format');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setFeatures(prev => prev.map(f =>
           f.id === featureId ? { ...f, enabled } : f
         ));
       } else {
-        alert('Failed to toggle feature');
+        throw new Error(result.error || 'Toggle operation failed');
       }
     } catch (error) {
       console.error('Toggle feature failed:', error);
-      alert('Failed to toggle feature');
+      alert(`Failed to toggle feature: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
