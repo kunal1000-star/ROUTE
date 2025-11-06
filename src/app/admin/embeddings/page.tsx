@@ -1,7 +1,7 @@
 // Admin Embedding Settings Page
 // ============================
 
-import { EmbeddingSettings } from '@/components/admin/EmbeddingSettings';
+import { EmbeddingModelsTab } from '@/components/admin/EmbeddingModelsTab';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function EmbeddingsAdminPage() {
   return (
     <div className="container mx-auto py-8">
-      <EmbeddingSettings />
+      <EmbeddingModelsTab />
     </div>
   );
 }

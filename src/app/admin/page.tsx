@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Settings, 
-  Users, 
-  Database, 
-  Zap, 
-  Shield, 
+import {
+  Settings,
+  Users,
+  Database,
+  Shield,
   Monitor,
   TrendingUp,
   AlertTriangle,
@@ -17,8 +16,6 @@ import {
   Download,
   Upload,
   Save,
-  Eye,
-  EyeOff,
   ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,6 +29,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { APIProvidersTab } from '@/components/admin/api-providers-tab';
+import { EmbeddingSettingsDebug } from '@/components/admin/EmbeddingSettingsDebug';
+import { ModelOverridesTab } from '@/components/admin/ModelOverridesTab';
+import { ChatSettingsTab } from '@/components/admin/ChatSettingsTab';
+import { EmbeddingModelsTab } from '@/components/admin/EmbeddingModelsTab';
 
 interface SystemHealth {
   status: 'healthy' | 'warning' | 'error';
@@ -80,7 +82,7 @@ export default function AdminPanel() {
   const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [showApiKeys, setShowApiKeys] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [testResults, setTestResults] = useState<any[]>([]);
 
   useEffect(() => {
@@ -91,24 +93,51 @@ export default function AdminPanel() {
     try {
       setIsLoading(true);
       
-      // Load system health
-      const healthResponse = await fetch('/api/admin/system/health');
-      const healthData = await healthResponse.json();
-      setSystemHealth(healthData);
+      // Load system health with error handling
+      try {
+        const healthResponse = await fetch('/api/admin/system/health');
+        if (healthResponse.ok) {
+          const healthData = await healthResponse.json();
+          setSystemHealth(healthData);
+        } else {
+          throw new Error('Health check failed');
+        }
+      } catch (error) {
+        console.warn('Failed to load system health, using mock data:', error);
+        setSystemHealth(getMockSystemHealth());
+      }
 
-      // Load API usage stats
-      const usageResponse = await fetch('/api/admin/system/usage');
-      const usageData = await usageResponse.json();
-      setApiUsage(usageData);
+      // Load API usage stats with error handling
+      try {
+        const usageResponse = await fetch('/api/admin/system/usage');
+        if (usageResponse.ok) {
+          const usageData = await usageResponse.json();
+          setApiUsage(usageData);
+        } else {
+          throw new Error('Usage stats failed');
+        }
+      } catch (error) {
+        console.warn('Failed to load API usage, using mock data:', error);
+        setApiUsage(getMockApiUsage());
+      }
 
-      // Load system configuration
-      const configResponse = await fetch('/api/admin/system/config');
-      const configData = await configResponse.json();
-      setSystemConfig(configData);
+      // Load system configuration with error handling
+      try {
+        const configResponse = await fetch('/api/admin/system/config');
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          setSystemConfig(configData);
+        } else {
+          throw new Error('Config failed');
+        }
+      } catch (error) {
+        console.warn('Failed to load system config, using mock data:', error);
+        setSystemConfig(getMockSystemConfig());
+      }
 
     } catch (error) {
       console.error('Failed to load system data:', error);
-      // Use mock data for demo
+      // Fallback to mock data if all else fails
       setSystemHealth(getMockSystemHealth());
       setApiUsage(getMockApiUsage());
       setSystemConfig(getMockSystemConfig());
@@ -230,11 +259,15 @@ export default function AdminPanel() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="providers">Providers</TabsTrigger>
-            <TabsTrigger value="config">Configuration</TabsTrigger>
-            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-8 overflow-x-auto scrollbar-hide">
+            <TabsTrigger value="overview" className="flex-shrink-0 text-xs">Overview</TabsTrigger>
+            <TabsTrigger value="providers" className="flex-shrink-0 text-xs">Providers</TabsTrigger>
+            <TabsTrigger value="model-overrides" className="flex-shrink-0 text-xs">Model Overrides</TabsTrigger>
+            <TabsTrigger value="fallback-chain" className="flex-shrink-0 text-xs">Fallback Chain</TabsTrigger>
+            <TabsTrigger value="chat-settings" className="flex-shrink-0 text-xs">Chat Settings</TabsTrigger>
+            <TabsTrigger value="config" className="flex-shrink-0 text-xs">Configuration</TabsTrigger>
+            <TabsTrigger value="monitoring" className="flex-shrink-0 text-xs">Monitoring</TabsTrigger>
+            <TabsTrigger value="embeddings" className="flex-shrink-0 text-xs">Embeddings</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -368,65 +401,26 @@ export default function AdminPanel() {
 
           {/* Providers Tab */}
           <TabsContent value="providers" className="space-y-6">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">AI Provider Configuration</h3>
-                <div className="flex gap-2">
-                  <Button onClick={testAllProviders} variant="outline">
-                    <Zap className="h-4 w-4 mr-2" />
-                    Test All
-                  </Button>
-                  <Button onClick={() => setShowApiKeys(!showApiKeys)} variant="outline">
-                    {showApiKeys ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                    {showApiKeys ? 'Hide Keys' : 'Show Keys'}
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {[
-                  { name: 'Groq', key: 'GROQ_API_KEY', models: ['llama-3.3-70b-versatile', 'llama-3.1-70b'] },
-                  { name: 'Gemini', key: 'GEMINI_API_KEY', models: ['gemini-1.5-flash', 'gemini-2.0-flash'] },
-                  { name: 'Cerebras', key: 'CEREBRAS_API_KEY', models: ['llama-3.3-70b', 'llama-3.1-8b'] },
-                  { name: 'Cohere', key: 'COHERE_API_KEY', models: ['command', 'command-light'] },
-                  { name: 'Mistral', key: 'MISTRAL_API_KEY', models: ['mistral-large-latest', 'mistral-medium-latest'] },
-                  { name: 'OpenRouter', key: 'OPENROUTER_API_KEY', models: ['openai/gpt-3.5-turbo', 'anthropic/claude-3.5-sonnet'] }
-                ].map((provider) => (
-                  <div key={provider.key} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium">{provider.name}</h4>
-                      <Badge variant="outline">Tier 1</Badge>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor={provider.key}>API Key</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id={provider.key}
-                            type={showApiKeys ? 'text' : 'password'}
-                            placeholder="Enter API key..."
-                            className="flex-1"
-                          />
-                          <Button variant="outline" size="sm">
-                            Test
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <Label>Available Models</Label>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {provider.models.map((model) => (
-                            <Badge key={model} variant="secondary" className="text-xs">
-                              {model}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
+            <APIProvidersTab onUnsavedChanges={setHasUnsavedChanges} />
+          </TabsContent>
+
+          {/* Model Overrides Tab */}
+          <TabsContent value="model-overrides" className="space-y-6">
+            <ModelOverridesTab />
+          </TabsContent>
+
+          {/* Fallback Chain Tab */}
+          <TabsContent value="fallback-chain" className="space-y-6">
+            <div className="text-center py-12">
+              <h3 className="text-lg font-semibold mb-2">Fallback Chain</h3>
+              <p className="text-muted-foreground">Configure backup providers and retry strategies.</p>
+              <p className="text-sm text-muted-foreground mt-2">Implementation coming soon...</p>
+            </div>
+          </TabsContent>
+
+          {/* Chat Settings Tab */}
+          <TabsContent value="chat-settings" className="space-y-6">
+            <ChatSettingsTab />
           </TabsContent>
 
           {/* Configuration Tab */}
@@ -694,6 +688,11 @@ export default function AdminPanel() {
                 </Button>
               </div>
             </Card>
+          </TabsContent>
+
+          {/* Embeddings Tab */}
+          <TabsContent value="embeddings" className="space-y-6">
+            <EmbeddingModelsTab />
           </TabsContent>
         </Tabs>
       </div>

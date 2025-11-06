@@ -2,13 +2,14 @@
 
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Wifi, 
-  Settings, 
-  GitBranch, 
-  MessageSquare, 
+import {
+  Wifi,
+  Settings,
+  GitBranch,
+  MessageSquare,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  Monitor
 } from 'lucide-react';
 
 interface Tab {
@@ -25,11 +26,14 @@ interface AdminSidebarProps {
 }
 
 const iconMap = {
-  'api-providers': Wifi,
+  'overview': Monitor,
+  'providers': Wifi,
   'model-overrides': Settings,
   'fallback-chain': GitBranch,
   'chat-settings': MessageSquare,
-  'usage-monitoring': BarChart3,
+  'config': Settings,
+  'monitoring': BarChart3,
+  'embeddings': Settings,
 };
 
 export function AdminSidebar({ tabs, activeTab, onTabChange }: AdminSidebarProps) {

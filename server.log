@@ -40,3 +40,109 @@ nohup: ignoring input
  GET /admin/embeddings 200 in 157ms
  GET /api/admin/embeddings/settings 200 in 380ms
  GET / 200 in 185ms
+ ✓ Compiled in 355ms
+ ✓ Compiled in 1768ms
+ ⚠ Failed to reload dynamic routes: [Error: ENOSPC: no space left on device, write] {
+  errno: -28,
+  code: 'ENOSPC',
+  syscall: 'write'
+}
+ ✓ Compiled / in 3ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.1s
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zeanz0jpoyj'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zeanz0jpoyj'
+}
+[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zqbae54kj5d'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zqbae54kj5d'
+}
+[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.ddut8hczvnf'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.ddut8hczvnf'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.mh5c6n3kon'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.mh5c6n3kon'
+}
+[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.r508ayf7g3e'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.r508ayf7g3e'
+}
+[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.7jjpzykmx5b'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.7jjpzykmx5b'
+}
+ ✓ Compiled in 396ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 731ms
+ GET /admin 200 in 1298ms
+ ✓ Compiled /admin/embeddings in 26ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'
+}
+ GET /admin/embeddings 500 in 456ms
+ GET /admin 200 in 171ms
+ GET /admin 200 in 606ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'
+}
+ GET /admin/embeddings 500 in 137ms
+ ✓ Compiled in 1259ms
+ ✓ Compiled in 453ms
+ ✓ Compiled /admin/embeddings in 11ms
+ ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'
+}
+ GET /admin/embeddings 500 in 120ms
+ ✓ Compiled /admin in 33ms
+ GET /admin 200 in 622ms
+ GET / 200 in 278ms
+ GET / 200 in 204ms
+ GET / 200 in 202ms
