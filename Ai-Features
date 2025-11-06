@@ -1,0 +1,4620 @@
+Perfect! Let me give you PROMPT 1 IN DETAIL (the very first one):
+
+PROMPT 1: API KEY TEST AND INITIALIZATION
+What This Does:
+
+Create a test script that verifies all 7 API providers work correctly. This ensures all API keys are valid before building anything else.
+
+Detailed Instructions:
+Step 1: What APIs to Test
+
+Test these 7 providers:
+
+Groq (API endpoint: groq.com)
+Gemini (API endpoint: Google AI Studio)
+Cerebras (API endpoint: api.cerebras.ai)
+Cohere (API endpoint: cohere.com)
+Mistral (API endpoint: mistral.ai)
+ (API endpoint: api.together.xyz)
+OpenRouter (API endpoint: openrouter.ai)
+Step 2: What Each Test Should Do
+
+For each provider, do a simple API call (not actual chat, just a basic test):
+
+Groq Test:
+
+Make a request to Groq with a simple message like "Say hello"
+Use Llama 3.3 70B model
+Check if response comes back successfully
+
+Gemini Test:
+
+Make a request to Gemini with same simple message
+Use gemini-2.0-flash-lite model
+Check if response comes back successfully
+
+Cerebras Test:
+
+Make a request to Cerebras with same simple message
+Use llama-3.3-70b model
+Check if response comes back successfully
+
+Cohere Test:
+
+Make a simple embedding request (generate embedding for "hello")
+Use embed-english-v3.0 model
+Check if embedding comes back
+
+Mistral Test:
+
+Make a request with simple message
+Use mistral-small model
+Check if response comes back
+
+
+OpenRouter Test:
+
+Make a request with simple message
+Use any available model (like gpt-3.5-turbo)
+Check if response comes back
+Step 3: Output Format
+
+Print results like this to the console:
+
+
+
+text
+BLOCKWISE AI - API KEY TEST RESULTS
+====================================
+Date: [Today's date]
+Time: [Current time]
+
+✓ Groq: SUCCESS (response received in 250ms)
+✓ Gemini: SUCCESS (response received in 1200ms)
+✓ Cerebras: SUCCESS (response received in 300ms)
+✓ Cohere: SUCCESS (embedding generated, 150ms)
+✓ Mistral: SUCCESS (response received in 400ms)
+✓ : SUCCESS (response received in 500ms)
+✓ OpenRouter: SUCCESS (response received in 600ms)
+
+All providers working! ✓
+Total providers tested: 6
+Success rate: 100%
+
+Next step: Run Prompt 2 (Database Setup)
+
+Step 4: Handle Errors
+
+If any API fails, show:
+
+
+
+text
+✗ Groq: FAILED
+  Error: Invalid API key or network timeout
+  Fix: Check GROQ_API_KEY in .env.local
+
+Continue testing other providers? (yes/no)
+
+
+Don't stop at first error. Test ALL providers even if some fail.
+
+Step 5: Where Results Should Be Saved
+Print to console (instant feedback)
+Also log to file: logs/ai-provider-test.log
+Timestamp everything
+Step 6: Environment Variables Needed
+
+The script should read from .env.local:
+
+GROQ_API_KEY
+GEMINI_API_KEY
+CEREBRAS_API_KEY
+COHERE_API_KEY
+MISTRAL_API_KEY
+TOGETHER_API_KEY
+OPENROUTER_API_KEY
+
+If any are missing, show which ones and ask user to add them.
+
+Step 6: Run This On
+App startup (automatically)
+Also allow manual trigger via settings panel
+Don't block app if test fails (show warning but continue)
+
+
+
+
+
+
+Perfect! ✅ Now here's PROMPT 2 IN DETAIL:
+
+PROMPT 2: SUPABASE DATABASE SETUP
+What This Does:
+
+Create all database tables needed for the AI system to work. These tables store conversations, memories, API usage, and configuration.
+
+Detailed Instructions:
+TABLE 1: chat_conversations
+
+Purpose: Stores each chat session (like "Physics Discussion" or "Study Help")
+
+Columns to create:
+
+id: Unique identifier (UUID type, auto-generate)
+user_id: Links to the student (UUID type, references the users table)
+title: Name of the chat (text type)
+chat_type: Either "general" or "study_assistant" (text type)
+created_at: When chat started (timestamp, auto-set to now)
+updated_at: When chat last used (timestamp, auto-set to now)
+is_archived: Whether chat is archived (boolean, default false)
+
+Security: Only the owner can see their own chats
+
+TABLE 2: chat_messages
+
+Purpose: Stores each individual message in a chat
+
+Columns to create:
+
+id: Unique identifier (UUID, auto-generate)
+conversation_id: Which chat this belongs to (UUID, links to chat_conversations)
+role: Who sent it - "user" or "assistant" (text type)
+content: The actual message text (text type, can be long)
+model_used: Which AI model responded (text type, like "groq-llama-3.3-70b")
+provider_used: Which company provided it (text type, like "groq")
+tokens_used: How many tokens consumed (integer)
+latency_ms: Response time in milliseconds (integer)
+timestamp: When sent (timestamp, auto-set to now)
+context_included: Whether app data was included (boolean)
+
+Security: Only the owner can see messages from their chats
+
+TABLE 3: study_chat_memory
+
+Purpose: Stores conversation insights for 8 months (the "memory" system)
+
+Columns to create:
+
+id: Unique identifier (UUID, auto-generate)
+user_id: Which student (UUID, links to users)
+content: The insight text (text type, like "Student weak in Thermodynamics")
+embedding: Mathematical representation for search (vector type with 1536 dimensions)
+importance_score: How important (integer, 1 to 5)
+tags: Categories (array of text, like ["weakness", "physics"])
+source_conversation_id: Which chat it came from (UUID, optional)
+created_at: When created (timestamp, auto-set to now)
+expires_at: When to delete (timestamp, set to 8 months from now)
+is_active: Still relevant (boolean, default true)
+
+Important: Enable pgvector extension first for the embedding column
+
+Security: Only the owner can see their own memories
+
+TABLE 4: memory_summaries
+
+Purpose: Pre-computed summaries to save tokens (weekly and monthly summaries)
+
+Columns to create:
+
+id: Unique identifier (UUID, auto-generate)
+user_id: Which student (UUID)
+summary_type: Either "weekly" or "monthly" (text type)
+period_start: Start date of summary (date type)
+period_end: End date of summary (date type)
+summary_text: The compressed summary (text type, max 500 characters)
+token_count: How many tokens this summary uses (integer)
+created_at: When generated (timestamp, auto-set to now)
+expires_at: When to regenerate (timestamp, 1 week or 1 month from now)
+
+Security: Only the owner can see their summaries
+
+TABLE 5: student_ai_profile
+
+Purpose: Ultra-compressed student profile (always included in every chat)
+
+Columns to create:
+
+user_id: Which student (UUID, primary key, links to users)
+profile_text: The compressed profile (text type, max 200 characters)
+strong_subjects: Array of strong subjects (array of text)
+weak_subjects: Array of weak subjects (array of text)
+learning_style: How they learn (text type, like "visual", "practical")
+exam_target: Target exam (text type, like "JEE 2025")
+last_updated: When profile was last refreshed (timestamp)
+
+Security: Only the owner can see their profile
+
+TABLE 6: api_usage_logs
+
+Purpose: Track every API call for monitoring and optimization
+
+Columns to create:
+
+id: Unique identifier (UUID, auto-generate)
+user_id: Which student (UUID)
+feature_name: Which feature used AI (text type, like "general_chat")
+provider_used: Which company (text type, like "groq")
+model_used: Which model (text type, like "llama-3.3-70b")
+tokens_input: Input tokens (integer)
+tokens_output: Output tokens (integer)
+latency_ms: Response time (integer)
+cached: Was response from cache (boolean)
+cost_estimate: Estimated cost in dollars (decimal, 4 decimal places)
+timestamp: When called (timestamp, auto-set to now)
+success: Whether call succeeded (boolean)
+error_message: Error if failed (text type, optional)
+
+Security: Only users and the user can see their own logs
+
+TABLE 7: ai_system_prompts
+
+Purpose: Store AI instructions (locked prompts)
+
+Columns to create:
+
+id: Unique identifier (UUID, auto-generate)
+name: Prompt identifier (text type, unique, like "hinglish_chat_general")
+system_prompt: The actual instruction (text type, can be very long)
+language: Response language (text type, like "hinglish")
+is_active: Currently in use (boolean, default true)
+version: Version number (integer, default 1)
+created_at: When created (timestamp)
+updated_at: When last modified (timestamp)
+
+Security: Only users can modify, all users can read
+
+Initial data to insert:
+
+Prompt 1:
+
+name: "hinglish_chat_general"
+system_prompt: "You are a helpful study assistant for Indian JEE students. Always respond in Hinglish using Roman script only (no Devanagari). Be friendly, encouraging, and concise. Current date: {TODAY}. Never invent exam dates - if unsure, tell student to check official sources."
+language: "hinglish"
+
+Prompt 2:
+
+name: "hinglish_chat_with_data"
+system_prompt: "You are a personalized study coach with access to this student's study data. Respond in Hinglish only using Roman script. Be specific about their performance, weak areas, and progress. Encourage them with data-backed insights."
+language: "hinglish"
+ENABLE PGVECTOR EXTENSION
+
+Before creating study_chat_memory table, enable vector support in Supabase SQL editor by running this command:
+
+
+
+text
+Enable vector extension for embeddings
+
+
+This allows storing Cohere embeddings for semantic search.
+
+INDEXES TO CREATE (for speed)
+
+Create these indexes to make queries faster:
+
+Index on chat_messages conversation_id (for fast message retrieval)
+Index on study_chat_memory user_id and expires_at (for fast memory lookup)
+Index on api_usage_logs user_id and timestamp (for usage tracking)
+
+
+
+
+SECURITY RULES
+
+Set up Row Level Security policies:
+
+Users can only see their own data
+
+
+
+
+
+
+
+
+
+
+Excellent! ✅ PROMPT 3: AI SERVICE MANAGER - THE BRAIN OF THE SYSTEM
+
+
+
+
+PROMPT 3: AI SERVICE MANAGER WITH CONFIGURABLE LIMITS
+What This Does:
+
+Create the central AI router that decides which provider/model to use. users can set custom rate limits for each provider via settings.
+
+Detailed Instructions:
+Step 1: Query Type Detection
+
+When a user sends a message, classify into 3 types:
+
+Type 1: Time-Sensitive Query
+
+Keywords: "exam date", "form", "registration", "admit card", "result", "aaya kya", "latest", "when", "kab", "announcement"
+Examples: "JEE form date?", "Exam kab hai?", "Result aaya?"
+Action: Use Gemini 2.0 Flash-Lite with web search enabled
+
+Type 2: App-Data Query
+
+Keywords: "mera", "my", "performance", "progress", "weak", "strong", "score", "analysis", "kaise chal raha"
+Examples: "Mera physics kaisa hai?", "My weak areas?", "Progress report"
+Action: Use Groq Llama 3.3 70B (with student's app data)
+
+Type 3: General Query (Default)
+
+Everything else
+Examples: "Thermodynamics kya hai?", "Study tips", "How to prepare"
+Action: Use Groq GPT-OSS 20B (fastest, cheapest)
+Step 2: 6-Tier Fallback Chain ( Removed)
+
+If primary model fails, auto-try next tier without user knowing:
+
+Tier 1 (Primary):
+
+Time-sensitive → Gemini 2.0 Flash-Lite
+App-data → Groq Llama 3.3 70B
+General → Groq GPT-OSS 20B
+
+Tier 2 (Alternative Groq):
+
+If Groq fails → Try Groq Qwen-3 32B (same provider, different model)
+
+Tier 3 (Cerebras Backup):
+
+If all Groq fails → Try Cerebras Llama 3.3 70B (ultra-fast)
+
+Tier 4 (Mistral Fallback):
+
+If Cerebras fails → Try Mistral Large (advanced reasoning)
+
+Tier 5 (OpenRouter):
+
+If Mistral fails → Try OpenRouter (access any available model)
+
+Tier 6 (Graceful Degradation):
+
+If ALL providers fail:
+Check if response is cached → Use cache
+If no cache → Use rule-based answer (algorithm)
+If no rule matches → Show: "High traffic, try again in 2 minutes"
+Step 3: CONFIGURABLE RATE LIMITS (NEW)
+
+Create a settings system where users can set custom limits(optional) for each provider.
+
+Requests Per Minute (RPM), Requests Per Day (RPD), Tokens Per Minute (TPM), and Tokens Per Day (TPD)
+
+
+
+
+users can override defaults via settings:
+
+Go to Settings → Tab 1: API Providers
+For each provider, see an input field
+Example: "Groq Llama 3.3 70B Limit: requests/minute"
+users can change to: or etc
+Changes take effect immediately
+Step 4: Real-Time Limit Tracking
+
+Track each provider's actual usage:
+
+Groq Tracking:
+
+Compare: current_requests_in_window vs configured_limit
+If reaching 80% → Flag as "Caution" (visual warning)
+If reaching 95% → Auto-switch to Cerebras
+Log which requests were switched
+
+Gemini Tracking:
+
+Limit: 1500 requests/day (60 per minute default, overridable)
+If reaching 80% → Flag as "Caution"
+If reaching 95% → Switch to Groq (without web search)
+Log which requests lost web search
+
+Cohere Tracking:
+
+Limit: 1000 calls/month (default, overridable)
+If reaching 50% → Start caching embeddings
+If reaching 80% → Use only cached embeddings
+Log: Monthly consumption vs limit
+
+Mistral Tracking:
+
+Limit: 500 requests/month (default, overridable)
+Track daily/monthly usage
+If reaching 80% → Use other providers
+Log: All usage
+
+OpenRouter Tracking:
+
+Limit: 100 requests/hour (default, overridable)
+Track token cost
+If reaching 80% → Use other providers
+Log: Cost and usage
+
+Cerebras Tracking:
+
+Limit: Generous (no official limit, set default 500/minute)
+Track usage for statistics
+Log: All usage
+Step 5: Limit Enforcement Logic
+
+For each API call:
+
+Check provider's current usage
+Compare to configured limit
+If BELOW 80%:
+Use this provider normally
+Continue
+If 80-94%:
+Show warning in dashboard
+Still allow this request
+Next request → try alternative provider
+If 95%+:
+SKIP this provider
+Jump to Tier 2/3 of fallback chain
+Log: "Limit reached, using fallback"
+If ALL providers at 95%+:
+Use cache or graceful degradation
+Never fail, always have backup
+Step 6: Response Formatting
+
+Always return:
+
+
+
+text
+{
+  content: "The actual AI response",
+  model_used: "groq-llama-3.3-70b",
+  provider: "groq",
+  query_type: "general",
+  tier_used: 1,
+  cached: false,
+  tokens_used: { input: 150, output: 200 },
+  latency_ms: 850,
+  web_search_enabled: false,
+  fallback_used: false,
+  limit_approaching: false
+}
+
+Step 7: Dashboard Indicators
+
+Show in real-time dashboard:
+
+For each provider:
+
+
+
+text
+Groq Llama 3.3 70B
+Configured Limit: 500 requests/minute
+Current Usage: 423 requests/minute (85%)
+Status: ⚠️ CAUTION
+
+[Progress bar: 85% filled, turning yellow]
+
+Next reset: in 45 seconds
+
+
+Color coding:
+
+Green: 0-79% (safe)
+Yellow: 80-94% (caution, may switch soon)
+Red: 95%+ (at limit, using fallback)
+Step 8: Settings Panel for Limits
+
+Tab 1: API Providers should have:
+
+
+
+text
+RATE LIMITS (Customizable)
+
+Groq Llama 3.3 70B:
+[500] requests/minute [Reset to default]
+
+Groq GPT-OSS 20B:
+[1000] requests/minute [Reset to default]
+
+Gemini Flash-Lite:
+[60] requests/minute [Reset to default]
+
+Cerebras Llama 3.3 70B:
+[500] requests/minute [Reset to default]
+
+Cohere Embeddings:
+[1000] requests/month [Reset to default]
+
+Mistral Large:
+[500] requests/month [Reset to default]
+
+OpenRouter:
+[100] requests/hour [Reset to default]
+
+[SAVE LIMITS] [RESET ALL TO DEFAULT]
+
+Step 9: Logging & Monitoring
+
+Log every request with:
+
+Provider used
+Model used
+Current usage at time of request
+Current limit at time of request
+Usage percentage
+Whether limit was approached
+Whether fallback occurred
+Step 10: Error Handling
+
+For each provider failure:
+
+Log the error + timestamp
+Move to next tier automatically
+Never show technical error to user
+Always show: "Getting response..." or "Checking sources..."
+Total timeout: 30 seconds, then fall back to cache/rule
+Key Behaviors:
+
+Behavior 1: Silent Fallback
+
+If Groq approaches limit → Auto-switch to Cerebras
+User gets response, never knows it switched
+Log shows: "fallback_used: true, reason: limit_approached"
+
+Behavior 2: user Control
+
+users can set limits based on their actual usage patterns
+Can be aggressive (300 limit) or conservative (1000 limit)
+Changes effective immediately for new requests
+
+Behavior 3: Transparency
+
+Show at bottom: "Powered by Groq Llama 3.3 70B"
+If web search used: "📡 Live information"
+If cached: "⚡ From cache (5 min old)"
+If fallback used: "🔄 Using faster model"
+
+Behavior 4: Cost Optimization
+
+Use cheap providers first (Groq, Cerebras)
+Expensive providers (OpenRouter) only when necessary
+Track daily costs
+
+
+
+
+
+
+
+
+
+
+
+
+Excellent! ✅ Now here's PROMPT 4: GENERAL CHAT FEATURE (first chat system):
+
+PROMPT 4: GENERAL CHAT FEATURE
+What This Does:
+
+Build a simple chat interface where students ask general study questions. The AI Service Manager (from Prompt 3) routes queries to the right model automatically.
+
+Detailed Instructions:
+Step 1: Chat Interface UI
+
+Create a chat page with these elements:
+
+Header:
+
+Title: "Ask Anything" or "Study Chat"
+Subtitle: "Ask general study questions"
+Button: "New Chat" (starts fresh conversation)
+
+Main Chat Area:
+
+Messages displayed in bubbles
+Student messages: right-aligned, blue bubble
+AI responses: left-aligned, gray bubble
+Show loading spinner while AI is responding
+Show: "Getting response..." during processing
+
+Input Box (Bottom):
+
+Text input field (placeholder: "Type your question here...")
+Send button (arrow icon or "Send")
+Disable send while processing
+Show character counter (optional)
+
+Message Details (on hover/tap):
+
+Show model used: "Powered by Groq Llama 3.3 70B"
+Show response time: "854ms"
+Show tokens: "Input: 150, Output: 200"
+Show web search indicator: "📡 Live search" or just "⚡ Cached"
+Step 2: Chat Session Management
+
+Creating a new chat:
+
+Generate unique ID for conversation
+Store in chat_conversations table with:
+conversation_id: auto-generated UUID
+user_id: current user
+title: auto-generate from first question
+chat_type: "general"
+created_at: now
+updated_at: now
+
+Auto-generating titles:
+
+Take first 50 characters of first question
+Example: "Thermodynamics: What is entropy?" → title saved as "Thermodynamics: What is entropy?"
+If question > 50 chars, truncate and add "..."
+
+Listing past chats:
+
+Show sidebar with list of all past conversations
+Display: [Title] - [Date]
+Most recent first
+Click to view old conversation
+Delete button on each chat
+Step 3: Message Flow
+
+When student sends message:
+
+Display message immediately in chat (user side)
+Disable input field
+Show loading: "Getting response..."
+Call the AI Service Manager with:
+user_id
+message (the question)
+conversation_id
+chat_type: "general"
+AI Service Manager processes:
+Detects query type (time-sensitive, app-data, general)
+Selects model (should be time-sensitive or general)
+Routes through fallback chain if needed
+Returns response with metadata
+Display AI response:
+Show response text
+Show "Powered by [Model Name]"
+Show response time
+Show tokens used
+Store message in chat_messages table:
+conversation_id: this chat's ID
+role: "assistant"
+content: the response
+model_used: which model (from AI Service Manager)
+provider_used: which provider (from AI Service Manager)
+tokens_used: count
+latency_ms: response time
+timestamp: now
+Also store user message:
+role: "user"
+content: the question
+model_used: null (user didn't use AI)
+timestamp: now
+Step 4: Hinglish Enforcement
+
+Verify response is in Hinglish:
+
+If response contains only Devanagari text (e.g., "यह एक टेस्ट है"):
+Do NOT show this response
+Instead show error: "Apologies, response generation error. Trying again..."
+Call AI again with instruction: "RESPOND ONLY IN HINGLISH (ROMAN SCRIPT)"
+If still fails, show: "Unable to process, try different wording"
+
+Language indicator:
+
+Show a small flag or label: "🇮🇳 Hinglish" next to response
+Let users report if response isn't in Hinglish
+Step 5: Time-Sensitive Query Detection & Web Search
+
+When AI Service Manager detects time-sensitive query:
+
+Show indicator: "📡 Searching latest information..."
+Show spinner during web search
+Once response comes: Display "📡 Live search"
+Also show sources (if available): "Source: NTA Official Website"
+
+Example time-sensitive responses:
+
+
+
+text
+User: "JEE form date kya hai?"
+Response: "JEE Mains 2026 registration typically happens in December-January. 
+Check jeemain.nta.nic.in for exact dates."
+📡 Live search | Powered by Gemini 2.0 Flash-Lite
+
+Step 6: Error Handling
+
+If AI fails (all tiers exhausted):
+
+Show friendly message: "Sorry, servers are busy right now. Please try again in a moment."
+Offer option: "Try with different question?" or "Go back"
+Log the error internally
+
+If rate limit reached:
+
+Show: "High traffic! Please wait a moment before next message."
+Show countdown: "Try again in 45 seconds"
+Disable send button during countdown
+
+If user network error:
+
+Show: "Connection lost. Check your internet."
+Show retry button
+Step 7: Context & Memory Integration
+
+For general chat (this feature):
+
+Do NOT include student's personal study data
+Just use: current date, general knowledge
+Keep context lightweight
+
+Important: This is NOT personalized yet.
+
+Step 8: Caching
+
+Check cache before calling AI:
+
+Generate cache key: hash(user_id + query_type + first_50_chars_of_question)
+Check if this exact question was asked in last 6 hours
+If yes: Return cached response (mark as "⚡ Cached response")
+If no: Call AI and cache response
+
+Cache TTL: 6 hours for general chat (can be configured)
+
+Step 9: Chat Export/Share (Optional)
+Add button: "Share conversation"
+Options: Copy link, export as PDF, export as text
+Generate shareable link with anonymized data
+Step 10: Mobile Responsiveness
+Chat bubbles stack properly on mobile
+Input box sticky at bottom
+Message time visible on tap/hover
+Touch-friendly send button
+Chat Flow Diagram:
+
+
+Chat Execution Flow - Step by Step
+STEP 1: Student Sends Question
+
+Student types "What is entropy?" and clicks Send button. The message appears immediately in their chat window on the left side in a blue bubble.
+
+STEP 2: Check Cache First
+
+Before calling any AI, generate a cache key using student ID + question type + first 50 characters of the question. Search the cache database to see if this exact question was answered in the last 6 hours.
+
+STEP 3: Cache Hit (If Found)
+
+If the cached response exists and is fresh (less than 6 hours old), retrieve it from cache and jump to Step 8. Mark the response as "⚡ From cache" so the student knows it's a cached response.
+
+STEP 4: Cache Miss (If Not Found)
+
+If no cache exists or cache expired, proceed to call the AI Service Manager. Pass the following information:
+
+Student's user ID
+The question text
+Conversation ID (chat ID)
+Chat type: "general"
+Include app data: false (no personal study data for general chat)
+STEP 5: AI Service Manager Processes
+
+The AI Service Manager (from Prompt 3) receives the request and analyzes the question. It detects the query type: is this time-sensitive (exam dates), app-data (personal performance), or general (study concept)? For general chat, it typically classifies as either "time-sensitive" or "general".
+
+STEP 6: Route to Correct Model
+
+Based on query type detection:
+
+If time-sensitive (keywords: "exam", "date", "form", "latest", "aaya kya") → Route to Gemini 2.0 Flash-Lite with web search enabled
+If general (everything else) → Route to Groq GPT-OSS 20B (fastest, cheapest)
+The router also tracks current rate limits and switches to fallback providers if primary provider is approaching limits
+STEP 7: Get AI Response
+
+The selected model processes the question and generates a response. The response includes not just the text but also metadata: which model was used, how many tokens were consumed, how long it took, whether web search was used, etc.
+
+STEP 8: Display Response to Student
+
+Show the AI's response in a gray bubble on the right side of the chat. Below the response, display:
+
+"Powered by Groq Llama 3.3 70B" or "Powered by Gemini 2.0 Flash-Lite"
+Response time like "854ms"
+If web search was used: "📡 Live information from latest sources"
+If from cache: "⚡ Cached response"
+STEP 9: Store in Database
+
+Save two messages to the chat_messages table:
+
+Store the student's question with role="user"
+Store the AI's response with role="assistant" plus metadata (model used, provider, tokens, latency)
+Both belong to the same conversation_id
+STEP 10: Cache the Response
+
+Save the AI response to the cache with a TTL (time-to-live) of 6 hours. Next time the student or any student asks the same question, the system will use this cached response instead of calling AI again.
+
+STEP 11: Ready for Next Question
+Re-enable the input field and send button. Student can now ask another question, and the entire flow repeats from STEP 1
+
+
+
+What Data to Show:
+
+Always visible:
+
+User message
+AI response
+"Powered by [Model Name]"
+Response time
+Timestamp
+
+On hover/tap:
+
+Tokens used (input/output)
+Web search indicator (if applicable)
+Source (if web searched)
+
+Optional (in settings):
+
+Model selection
+Cache indicator
+Tier used
+Integration with Prompt 3:
+
+This feature USES the AI Service Manager from Prompt 3. So make sure Prompt 3 is done first.
+
+Call it like:
+
+
+
+text
+const response = await aiServiceManager.processQuery({
+  userId: current_user_id,
+  message: student_question,
+  conversationId: chat_id,
+  chatType: "general",
+  includeAppData: false
+})
+
+
+
+
+
+Perfect! ✅ Now here's PROMPT 5: STUDY ASSISTANT CHAT + MEMORY SYSTEM (the advanced personalized chat):
+
+PROMPT 5: STUDY ASSISTANT CHAT WITH 8-MONTH MEMORY
+What This Does:
+
+Build an advanced chat that uses student's personal study data to give personalized responses. It also has a memory system that remembers conversations for 8 months using semantic search.
+
+STEP 1: Differentiate from General Chat
+
+This is a separate chat interface from Prompt 4 (General Chat). Students access this via: Menu → "Study Assistant" or a tab saying "My Coach".
+
+Key difference: This chat includes the student's personal study data in every request.
+
+STEP 2: Chat Interface (Similar to Prompt 4)
+
+Create another chat page with identical UI to general chat:
+
+Message bubbles (student on left, AI on right)
+Input box at bottom
+Show model used, response time, tokens
+Sidebar with past conversations
+"New Chat" button
+
+BUT add one additional element:
+
+Show a small profile card at the top: "Coach" with student's name
+Under name show ultra-compressed profile: "Physics: 78% | Weak: Thermodynamics"
+STEP 3: Detect if Question is Personal
+
+Before calling AI, check if question is asking for personalized help:
+
+Keywords that trigger personalization:
+
+"mera", "my", "performance", "progress", "weak", "strong", "score", "analysis", "revision", "kaise chal raha", "improvement", "help me", "suggest", "strategy", "schedule"
+
+Example personal questions:
+
+"Mera Physics kaisa chal raha hai?"
+"My weak areas?"
+"Suggest revision topics"
+"Performance analysis"
+"How to improve?"
+
+Example NON-personal (should use general chat):
+
+"What is entropy?" (concept, not about them)
+"How to solve this physics problem?" (problem-solving, not about them)
+STEP 4: Fetch Personal Study Data
+
+When question is personal, fetch centralized AI context using the function from your existing system:
+
+text
+
+const studentContext = await buildFullAIContext(userId)
+
+This returns:
+
+Recent activities (last 7 days)
+Performance scores (all subjects)
+Weak areas (detected automatically)
+Strong areas (detected automatically)
+Revision queue (topics to revise)
+Study statistics (hours studied, streaks)
+Current goals
+
+Keep data lean: Only fetch what's needed. Don't load 8 months of history every time.
+
+STEP 5: Create Ultra-Compressed Student Profile (20 tokens max)
+
+Extract a super-compressed summary from context:
+
+Example:
+
+
+
+text
+"JEE 2025 aspirant. Physics: 78%, Chemistry: 82%, Maths: 75%. 
+Weak: Thermodynamics, Modern Physics. Strong: Organic Chemistry. 
+Studying 3-4 hours daily. Revision: 5 topics pending."
+
+
+This profile is ALWAYS included in every Study Assistant chat request to save tokens. It's the "ultra-light" version of the full context.
+
+STEP 6: Build Request with Personal Data
+
+When student sends message, pass to AI Service Manager:
+
+
+
+text
+const response = await aiServiceManager.processQuery({
+  userId: current_user_id,
+  message: student_question,
+  conversationId: chat_id,
+  chatType: "study_assistant",
+  includeAppData: true,
+  studentProfile: ultra_compressed_profile,
+  fullContext: studentContext (if needed)
+})
+
+STEP 7: Get Personalized Response
+
+AI now sees the student's data and responds specifically:
+
+Without personalization (wrong):
+
+ "Thermodynamics is the study of heat and temperature..."
+
+With personalization (correct):
+
+ "I see Thermodynamics is your weak area (45% score). Let's focus on entropy concept first.
+
+ You've already studied first law, so let's build on that.
+
+ Try this 10-minute focused session..."
+
+STEP 8: Extract Memory Insights
+
+After getting response, extract important insights:
+
+What to extract:
+
+Any weakness mentioned: "Student weak in Thermodynamics"
+Any strength mentioned: "Student strong in Organic Chemistry"
+Study pattern noticed: "Student prefers quick explanations"
+Learning style: "Student responds to visual examples"
+Gaps identified: "Student struggles with problem-solving"
+
+How to extract:
+
+Call AI again with instruction: "Extract 3 key insights from this conversation. Format: [INSIGHT: text]"
+Or use keyword matching + heuristics
+Max 3-5 insights per conversation
+STEP 9: Generate Embeddings with Cohere
+
+For each insight, generate an embedding (mathematical representation):
+
+
+
+text
+For insight "Student weak in Thermodynamics, especially entropy":
+1. Call Cohere embed-english-v3.0 API
+2. Get back a 1536-dimensional vector
+3. This vector captures the MEANING of the insight
+
+
+Why embeddings? So later, when student asks "How's my Thermo?", the system can search by meaning, not just keywords.
+
+STEP 10: Store Memory with 3-Tier Hierarchy
+
+Store insights in study_chat_memory table:
+
+Tier 1: Individual Memories (raw, detailed, 8 months)
+
+Store each insight extracted
+Has embedding for semantic search
+Has importance score (1-5)
+Has tags (weakness, strength, pattern, etc)
+Expires after 8 months
+
+Tier 2: Weekly Summaries (compressed, regenerated weekly)
+
+ Every Sunday, compress the week's insights:
+
+"This week: Weak in Thermodynamics, Strong in Organic, Needs revision scheduling"
+Stored separately in memory_summaries table
+Regenerated fresh each week
+Lightweight (saves tokens)
+
+Tier 3: Student Profile (ultra-compressed, always current)
+
+Constantly updated ultra-summary in student_ai_profile table
+Max 200 characters
+Example: "JEE 2025. Physics 78%, Weak: Thermo. Prefers visual learning."
+Include in EVERY chat request
+STEP 11: Semantic Search on Follow-up Questions
+
+When student asks a follow-up related to past conversation:
+
+
+
+text
+STEP A: Generate embedding for new question using Cohere
+STEP B: Search study_chat_memory table for similar embeddings
+STEP C: Find top 5 most relevant memories
+STEP D: Include as context in AI request
+
+Example:
+Student asks: "How's my Physics progress?"
+AI finds memories: "Thermo weak (45%)", "Mechanics strong (85%)", "Entropy struggled 3 weeks ago"
+AI includes in context: "Based on past 3 months, you improved Mechanics by 15%..."
+
+STEP 12: Dynamic Context Loading (4 Levels)
+
+DON'T load all 8 months of data every time. Load based on question type:
+
+Level 1 (Light): General performance Q
+
+Load: Student profile only
+Tokens: ~20
+Example: "How am I doing?"
+
+Level 2 (Recent): Recent progress Q
+
+Load: This week + last week summaries
+Tokens: ~50-100
+Example: "What should I focus on this week?"
+
+Level 3 (Selective): Pattern Q
+
+Load: Monthly summaries for last 3 months
+Tokens: ~150-200
+Example: "Show me my trend over time"
+
+Level 4 (Full): Deep analysis Q
+
+Load: All individual memories + summaries
+Tokens: ~300-500
+Rare, only on request
+Example: "Complete performance analysis"
+STEP 13: Display Memory References
+
+When AI uses past memory in response, show it:
+
+
+
+text
+AI Response: "Your Thermodynamics has improved from 45% to 62% since Oct 15."
+
+Below response, show:
+"📚 Remembering from Oct 15 - You struggled with entropy concept"
+
+
+This shows students that AI is tracking them over time and builds trust.
+
+STEP 14: Chat Storage
+
+Store messages exactly like Prompt 4, but mark as study_assistant:
+
+
+
+text
+chat_conversations:
+- chat_type: "study_assistant" (not "general")
+
+chat_messages:
+- conversation_id: this chat's ID
+- role: "user" or "assistant"
+- content: message text
+- model_used: which model
+- context_included: true (since we used app data)
+
+STEP 15: Memory Auto-Cleanup
+
+Create a background job that runs daily:
+
+Daily cleanup:
+
+Find all memories where expires_at < today
+Delete them
+Log count of deleted memories
+This keeps database lean
+
+Monthly:
+
+Check weekly_summaries older than 1 month
+Keep them but mark as "archived"
+Don't delete, just mark
+STEP 16: Caching for Study Assistant
+
+Cache personal chat responses for 1 hour (shorter than general chat's 6 hours):
+
+Why 1 hour?
+
+Student data changes frequently
+Revision queue updates
+Performance scores change
+Should be relatively fresh
+
+Cache key:
+
+hash(user_id + "study_assistant" + first_50_chars_of_question)
+STEP 17: Memory Expiry Management
+
+Configure in settings:
+
+Memory retention: 8 months (default, changeable)
+Weekly summary regeneration: Every Sunday
+Profile update frequency: After each chat
+
+Students can optionally:
+
+Export all their memories
+Delete specific memory
+Clear all memories
+Download 8-month history as PDF
+STEP 18: Cohere Rate Limit Tracking
+
+Track Cohere embedding API usage (1000 calls/month free):
+
+Implementation:
+
+Log every Cohere call with timestamp
+Count calls in current month
+If reaching 500 calls (50% of limit): Start caching embeddings
+If reaching 900 calls (90% of limit): Use only cached embeddings, don't generate new
+At 1000 limit: Stop generating new embeddings, use cache only
+Chat Execution Flow - Study Assistant
+STEP 1: Student Opens Study Assistant Chat
+
+Student navigates to "Study Assistant" tab. Display their compressed profile and past conversations in sidebar.
+
+STEP 2: Student Sends Personal Question
+
+Student types "Mera Physics kaisa chal raha hai?" and hits Send. Message appears in chat bubble immediately.
+
+STEP 3: Detect Question Type
+
+System scans for keywords "mera", "performance", "progress", etc. Confirms this is a PERSONAL question requiring app data.
+
+STEP 4: Fetch Student Context
+
+Call buildFullAIContext(userId) to fetch:
+
+Recent study data
+Performance scores
+Weak/strong areas
+Revision queue
+
+Compress into ultra-profile (20 tokens): "Physics 78%, Weak: Thermo, Need revision"
+
+STEP 5: Generate Memory Search Query
+
+Convert student's question "Mera Physics kaisa..." into an embedding using Cohere.
+
+STEP 6: Search Past Memories
+
+Search study_chat_memory table using vector similarity. Find top 5 related memories:
+
+"Thermodynamics weak (45%)" from Oct 15
+"Mechanics improved 15%" from Sep 30
+"Needs revision scheduling" from Sep 28
+STEP 7: Build Rich Context
+
+Combine:
+
+Current student profile
+Top 5 relevant past memories
+Recent performance
+Current goals
+STEP 8: Check Cache
+
+Search cache for exact question asked in last 1 hour. If found, return cached response.
+
+STEP 9: Call AI Service Manager
+
+Pass to router with includeAppData=true and full context:
+
+Router detects "study_assistant" type
+Selects Groq Llama 3.3 70B (personalization needs reasoning)
+Passes all context
+Gets personalized response
+STEP 10: Generate Response
+
+AI generates personalized response using context:
+
+ "Your Physics is at 78% which is decent. But Thermodynamics pulling you down at 45%.
+
+ Based on past conversations, entropy concept was your blocker.
+
+ Let's spend 30 mins on that today. Try the practice set I suggested Oct 15."
+
+STEP 11: Extract New Insights
+
+Analyze this new response for insights:
+
+"Student improving but needs Thermo focus"
+"Prefers structured 30-min sessions"
+Extract and generate embedding
+STEP 12: Store Memory
+
+Save insight to study_chat_memory:
+
+content: "Student improving overall, needs Thermodynamics focus"
+embedding: [Cohere generated vector]
+importance_score: 4
+tags: ["weakness", "thermodynamics", "focus_area"]
+expires_at: 8 months from today
+STEP 13: Display Response
+
+Show response in gray bubble with:
+
+"Powered by Groq Llama 3.3 70B"
+Response time: "1200ms"
+"📚 Remembering from Oct 15 - You struggled with entropy"
+STEP 14: Store in Database
+
+Save both user message and AI response to chat_messages with context_included=true.
+
+STEP 15: Cache Response
+
+Save response to cache with 1-hour TTL for future lookups.
+
+STEP 16: Ready for Follow-up
+
+Student can now ask follow-up question. System will use stored memory to make next response even smarter.
+
+
+This builds the complete Study Assistant Chat with memory system. Make sure Prompt 3 (AI Service Manager) is done first since this depends on it.
+
+
+
+
+
+
+
+
+
+Perfect! Here are the remaining 8 prompts - FAST BUT COMPLETE:
+
+PROMPT 6: BUILD 22 FEATURE SUGGESTIONS
+
+Build a feature suggestion system that appears throughout the app. These are AI-powered tips triggered at specific moments.
+
+The 22 Features:
+
+Smart topic suggestions, 2. Pomodoro optimization, 3. Question volume recommendations, 4. Chapter prioritization, 5. Smart revision scheduling, 6. Priority ranking, 7. Mastery prediction, 8. Weak area identification, 9. Performance insights, 10. Personalized recommendations, 11. Smart schedule generation, 12. Dynamic rescheduling, 13. Break optimization, 14. Daily study tips, 15. Motivational messages, 16. Study technique recommendations, 17. Difficulty prediction, 18. Time estimation, 19. Prerequisite suggestions, 20. Practice recommendations, 21. Performance analysis, 22. Natural language inputs.
+
+Implementation Strategy:
+
+Each feature has a trigger (when to show) and a cache time
+Use hybrid approach: Algorithm pre-filters (80%), AI refines (20%)
+Example: For "Smart topic suggestions", algorithm finds top 5 candidates, AI picks best 2
+Batch similar requests: If 3 features need data at once, combine into 1 API call
+Only load visible features (lazy loading)
+Cache results: Daily tips (24h), suggestions (6h), analysis (1h)
+Log to api_usage_logs which model handles which feature
+
+Feature Mapping (which model/method):
+
+Features 1-3, 5-6: Groq (fast recommendations)
+Features 4, 9, 21: Algorithm + Gemini (complex analysis)
+Features 7, 17: Mistral (advanced reasoning)
+Features 14-15: Precomputed + Groq (motivational)
+Features 2, 13: Algorithm only (time optimization)
+Features 10-11: Groq with full context
+Features 8, 19-20: Cohere embeddings + Groq
+
+Execution: Fetch student data → Detect which features are needed → For each, check cache → If miss, call appropriate model/algorithm → Combine results → Display across UI → Cache for next time.
+
+UI: Show suggestions as cards, bubbles, or notifications depending on feature. Always show which model powered it. Allow dismiss/snooze.
+
+PROMPT 7: MISTRAL AI INTEGRATION
+
+Add Mistral as advanced reasoning fallback. Use when complex multi-step reasoning is needed.
+
+Models to add:
+
+Mistral Small (cheap, reasoning)
+Mistral Large (advanced reasoning)
+Pixtral 12B (multimodal, can process images)
+
+When to use:
+
+Features 7, 17 (mastery prediction, difficulty prediction)
+Complex study pattern analysis
+Multi-subject performance correlation
+When Groq/Gemini timeout
+
+Implementation: Add Mistral API client alongside other providers. In AI Service Manager, add to Tier 4. Track Mistral rate limits (500 requests/month). Cost tracking per request. Fallback: If Mistral fails, use OpenRouter.
+
+PROMPT 8: GOOGLE DRIVE FILE ANALYSIS
+
+Allow students to upload PDFs/images from Google Drive. AI analyzes and provides insights.
+
+Workflow:
+
+Student clicks "Upload from Drive"
+OAuth authentication with Google
+Student selects file (PDF, images)
+System fetches file from Drive
+Extract text/images using Gemini 2.0 Flash-Lite (multimodal)
+AI analyzes content: "This is chapter 3 on Thermodynamics. Key topics: entropy, enthalpy. Difficulty: High"
+Suggest: "Add entropy to revision queue", "Practice 10 problems on this"
+Store analysis result for future reference
+
+Integration: Add new table: file_analyses (user_id, file_name, drive_file_id, extracted_content, ai_analysis, created_at, expires_at). Use Gemini 2.0 Flash-Lite's multimodal capabilities. Cache analysis for 7 days.
+
+PROMPT 9: SETTINGS PANEL - 5 TABS
+
+Build configuration UI where users control everything.
+
+Tab 1: API Providers
+
+Display all 6 providers (Groq, Gemini, Cerebras, Cohere, Mistral, OpenRouter)
+For each: Show current limit, current usage %, status (green/yellow/red)
+Input field to override limit (e.g., change Groq from 500 to 300 requests/min)
+"Test connection" button for each
+"Reset to default" button
+
+Tab 2: Model Overrides
+
+22 rows (one per feature)
+For each feature, show: default model, option to override
+Example: "Smart topic suggestions: Groq (override: Gemini)"
+Dropdown to select different model
+
+Tab 3: Fallback Configuration
+
+Show 6-tier fallback chain
+Drag-to-reorder providers in priority
+Toggle enable/disable for each tier
+Show: "If Groq fails, try Cerebras, then Mistral..."
+
+Tab 4: Chat Settings
+
+Enable/disable web search for time-sensitive queries
+Cache TTL for general chat (default 6h)
+Cache TTL for study assistant (default 1h)
+Memory retention period (default 8 months)
+Language preference confirmation
+
+Tab 5: Usage Dashboard
+
+Real-time graphs: API calls per day/week, tokens per provider
+Cost breakdown (if applicable)
+Cohere monthly tracking (1000 limit)
+Mistral monthly tracking (500 limit)
+Fallback events graph
+Export data as CSV
+PROMPT 10: REAL-TIME USAGE DASHBOARD
+
+Create live monitoring dashboard showing system health.
+
+Display Elements:
+
+Provider Status Card (for each of 6 providers): Current usage, limit, %, status indicator (🟢🟡🔴)
+Daily API Calls Graph: Line chart showing requests/hour for last 24h
+Token Consumption: Pie chart: Groq 40%, Gemini 30%, Cerebras 20%, etc
+Cost Tracker: If applicable, show spend
+Rate Limit Warnings: Yellow alerts at 80%, red at 95%
+Fallback Event Log: Table showing when/why fallbacks occurred
+Cohere Embed Usage: "850/1000 calls used this month"
+Mistral Usage: "120/500 calls used this month"
+Top Features by API Calls: Bar chart showing which of 22 features use most APIs
+Response Time Distribution: Histogram of API latency
+Cache Hit Rate: Shows % of responses served from cache
+
+Update frequency: Real-time (update every 5 seconds) or on-demand refresh button.
+
+PROMPT 11: RATE LIMIT MANAGER
+
+Build background system that proactively manages rate limits.
+
+Continuous Monitoring:
+
+Track each provider's current usage in real-time
+Maintain sliding window (per minute, per hour, per day, per month as needed)
+Calculate: current_usage / configured_limit = usage_percentage
+
+Automated Actions:
+
+At 80% usage: Change dashboard indicator to yellow, log warning
+At 95% usage: Auto-switch to next provider, log fallback reason
+If provider completely unavailable: Skip to Tier 3 fallback
+At 100% usage: Use cache or graceful degradation
+
+Fair User Queuing:
+
+If rate limit hit globally, queue new requests
+Show message: "High traffic, queued for 45 seconds"
+Process queued requests when limit resets
+Never drop requests, always serve
+
+Webhook Alerts (Optional): Send alerts to user if any provider hits 95% usage.
+
+PROMPT 12: MEMORY CLEANUP + MONITORING
+
+Build scheduled maintenance jobs.
+
+Daily Job (midnight):
+
+Find all study_chat_memory where expires_at < today
+Delete expired memories
+Log: "Deleted 342 memories (8 months old)"
+Calculate freed storage space
+
+Weekly Job (Sunday midnight):
+
+Generate weekly summaries for each student
+Compress week's insights into 1 summary
+Store in memory_summaries table
+TTL: 1 week (regenerated next Sunday)
+
+Monthly Job (1st of month):
+
+Archive old weekly summaries (mark as archived, don't delete)
+Update student_ai_profile with latest data
+Vacuum database (optimize storage)
+
+Health Checks (every 5 min):
+
+Verify all 6 provider APIs responding
+Check Cohere monthly call count
+Check Mistral monthly call count
+Log any failures to monitoring system
+
+Database Optimization:
+
+Index rebuild on chat_messages, study_chat_memory
+Auto-vacuum Supabase tables
+Log query performance stats
+
+Summary - 8 Prompts Condensed:
+
+PromptWhatKey Deliverable622 FeaturesHybrid (algorithm+AI) suggestions, cached, batched7MistralAdvanced reasoning, Tier 4 fallback, multimodal8Google DrivePDF/image analysis, Gemini multimodal, file_analyses table9Settings UI5 tabs: providers, overrides, fallback, chat, dashboard10Usage DashboardReal-time graphs, provider status, fallback logs11Rate Limit MgrMonitor usage %, auto-switch at 80-95%, queue requests12MaintenanceDaily cleanup, weekly summaries, monthly archive, health checks
+
+
+
+PROMPT 6: 22 AI-POWERED FEATURE SUGGESTIONS
+What This Does:
+
+Build a suggestion engine that generates smart recommendations throughout the app. These appear as cards, notifications, or bubbles at the right moment to help students study better.
+
+Why 22 Different Features?
+
+Different students need different help at different times. One student might need help prioritizing topics, another might need motivation, another needs schedule help. This system generates 22 types of personalized suggestions:
+
+The 22 Features:
+
+Performance Analysis (Features 1-6):
+
+Feature 1 is Smart Topic Suggestions. When a student opens the dashboard, the system analyzes what they've studied and haven't studied, what they're weak at, and what's most important for the exam. It suggests which topic they should study next. For example, if a student has studied 60% of Mechanics but only 20% of Thermodynamics, and Thermodynamics is easier for them to improve quickly, the system suggests Thermodynamics. It's like a smart coach saying "Based on your progress, focus here next."
+
+Feature 2 is Weak Area Identification. The system automatically detects which subjects or chapters the student struggles with by analyzing their scores, time spent, and performance patterns. It's automatic - it just watches their study data and identifies patterns. For example, if a student scores 45% in Thermodynamics consistently but 85% in Organic Chemistry, it identifies Thermodynamics as weak.
+
+Feature 3 is Performance Insights. This analyzes trends over time. Instead of just looking at current scores, it shows the trajectory. Are they improving? Getting worse? How fast? For example, "Your Physics has improved 12% over the last 4 weeks, but slowing down. Focus here."
+
+Feature 4 is Performance Analysis. This does deep dives into why performance is what it is. It doesn't just say "Weak in Thermo", it explains why: "You're weak in Thermo because entropy concept is unclear. You've attempted 3 questions on it, got 1 right. Need more practice on conceptual understanding, not just formulas."
+
+Feature 5 is Personalized Recommendations. Based on all the above analysis, it suggests very specific actions. Not generic "study more Physics" but precise: "Do 5 entropy practice questions today, then watch this video on entropy, then attempt the mock exam on Thermo."
+
+Feature 6 is Natural Language Inputs. Students can ask in natural language like "Help me improve" or "I'm struggling with organic chemistry" and the system converts that into actionable suggestions. It understands they need help and generates relevant tips.
+
+Study Scheduling (Features 7-12):
+
+Feature 7 is Smart Schedule Generation. The system creates an optimal study schedule for the student. It takes into account: how many days until exam, how much of syllabus is left, student's weak areas, student's strong areas, how much time student can dedicate daily. It then generates a custom schedule. For example, "Week 1: Focus on Thermodynamics (weak), Week 2: Organic Chemistry (prerequisite for next chapters), Week 3: Mechanics revision" etc.
+
+Feature 8 is Dynamic Rescheduling. When the schedule goes wrong (student falls behind), the system automatically adjusts it. If student was supposed to cover 5 chapters in a week but only covered 2, the system doesn't panic. It recalculates and says "OK, now focus on these 3 priority chapters this week, skip the less important ones for now, we'll catch up later."
+
+Feature 9 is Chapter Prioritization. Not all chapters are equally important. Some chapters are prerequisites for others, some are high-weight in exams, some are frequently asked. The system ranks chapters by importance and tells student which to study first. For example, "Study Newton's Laws before Rotational Motion because you need Newton's Laws to understand rotation."
+
+Feature 10 is Priority Ranking. Within a chapter, some topics matter more. For example, in Thermodynamics, First Law and Second Law are more important than Heat Engines. The system ranks topics by priority so student doesn't waste time on less important stuff.
+
+Feature 11 is Pomodoro Optimization. Different topics need different session lengths. Complex topics need longer focus (45 min sessions), simple revision needs shorter (20 min). The system analyzes each topic and suggests optimal Pomodoro session length. For example, "For entropy, use 45-min sessions. For revision, use 25-min sessions."
+
+Feature 12 is Break Optimization. How often should student take breaks? After how many sessions? How long? The system analyzes student's attention span patterns and suggests. For example, "You maintain focus for 90 minutes. Break after 90 mins, take 15-min break. After 3 cycles, take longer 30-min break."
+
+Prediction & Estimation (Features 13-17):
+
+Feature 13 is Mastery Prediction. Based on current progress, when will student master a topic? The system predicts. For example, "At current pace, you'll master Thermodynamics in 18 days. You need 25 days to feel confident before exam. Suggest increasing pace by 30%."
+
+Feature 14 is Difficulty Prediction. Before student starts a topic, the system predicts how difficult it will be for them specifically. Not difficulty in general, but for THIS student. For example, "Organic Chemistry is generally hard, but based on your pattern with similar topics, it will be moderately hard for you. Estimate: 15 hours of study needed."
+
+Feature 15 is Time Estimation. How long will a topic take? The system estimates based on: chapter length, student's average learning speed, topic complexity. For example, "Gravitation chapter: estimated 12 hours for you (average student takes 10 hours, but you're slower at conceptual topics)."
+
+Feature 16 is Question Volume Recommendations. How many practice questions should student do? The system suggests. For example, "You're strong at Mechanics (85% score). Do 20 practice questions to stay sharp. For Thermo (45% score), do 100 questions to improve."
+
+Feature 17 is Prerequisite Suggestions. Which topics should be studied before this one? The system identifies. For example, "Before learning Rotational Motion, master Newton's 3 Laws first. You haven't mastered them yet - current score 62%. Suggest revising first."
+
+Motivation & Learning (Features 18-22):
+
+Feature 18 is Daily Study Tips. Each day, system generates fresh study tips relevant to what student is studying today. For example, if student is studying Thermodynamics, tip is "Entropy is hard to visualize. Use the McDonald's ice cream melting analogy: organized molecules = low entropy, melted ice cream = high entropy."
+
+Feature 19 is Motivational Messages. Strategic encouragement at key moments. When student is stuck on a topic for long, system sends: "You've been on Thermo for 3 days. You're doing great - this is a tough topic. Your score improved from 35% to 52%. Keep going!" When student is procrastinating: "I noticed you haven't studied in 2 days. Exam is in 45 days. Small steps today = big progress. Let's start with 30 mins?"
+
+Feature 20 is Study Technique Recommendations. Different students learn differently. Some learn by visualization, some by formulas, some by problems. The system recommends the best technique for each topic for each student. For example, "You learn best through visual examples. For entropy, watch this YouTube animation before reading theory."
+
+Feature 21 is Practice Recommendations. Suggests specific practice questions/mock tests based on student's weakness. For example, "Your weak area: Organic Chemistry. Specific topic: Reactions. Recommend: JEE Mains 2023 Organic Chem questions on reactions. Do 15 questions, then check answers."
+
+Feature 22 is Revision Suggestions. Tells when and what to revise. For example, "You studied Mechanics 10 days ago. Time to revise. Based on forgetting curve, revise now to strengthen memory. Do 5 quick questions to refresh."
+
+STEP 1: The Hybrid Approach - Don't Use AI For Everything
+
+This is critical for efficiency. Some features don't need AI at all:
+
+Features that are pure algorithm (no AI): Weak Area Identification (just compare scores), Pomodoro Optimization (use predefined rules like if concentration < 60%, suggest 20-min sessions), Time Estimation (use formula: hours = chapter_length × difficulty_factor / learning_speed).
+
+Features that use algorithm first, then AI to refine: Smart Topic Suggestions (algorithm filters top 5 candidates by weakness level and importance, then AI ranks them by strategic value), Chapter Prioritization (algorithm sorts by prerequisites and exam weight, AI validates and refines), Difficulty Prediction (algorithm calculates based on historical data, AI adds contextual nuances).
+
+Features that are pure AI: Performance Insights (needs natural language analysis), Motivational Messages (needs personalization and emotional intelligence), Study Technique Recommendations (needs to understand learning psychology).
+
+STEP 2: Batching Requests - Don't Call AI 22 Times
+
+When multiple features trigger simultaneously, combine them into fewer API calls instead of 22 separate calls:
+
+When dashboard loads, it might need to generate 8 features (Topic Suggestion, Performance Insights, Daily Tip, Motivational Message, Technique Recommendation, Schedule Check, Weak Area, Revision Reminder). Instead of 8 separate API calls, combine into 2 batched calls:
+
+Batch 1 to Groq: "Given this student data, generate: top 3 suggested topics, performance insight summary, weak area identification, revision needs. Format: JSON"
+
+Batch 2 to Groq: "Generate: daily study tip for today's topic, motivational message, study technique recommendation for weak area, practice question suggestions. Format: JSON"
+
+Result: 2 API calls instead of 8. Saves 75% of API calls.
+
+STEP 3: Caching With Different TTLs
+
+Different features need different cache durations:
+
+Daily tips should cache for 24 hours because they're generally the same for all students on the same day, so generate once and reuse.
+
+Topic suggestions should cache for 6 hours because as student practices, their scores change and suggestions should update.
+
+Performance insights should cache for 1 hour because they're trend-based and should be relatively fresh.
+
+Motivational messages cache for 2 hours because timing matters - if student already saw a certain motivation message, don't repeat immediately.
+
+Schedule generation caches for 12 hours because schedules shouldn't change mid-day, only overnight.
+
+Weak area detection caches for 3 hours because it updates as student practices.
+
+Time estimation caches for 24 hours because it's long-term prediction.
+
+Implement this in the caching layer: when each feature is generated, tag it with its TTL. Reuse if cache exists and within TTL.
+
+STEP 4: Lazy Loading - Only Generate What's Visible
+
+Don't pre-generate all 22 features every time app opens:
+
+Dashboard layout shows 5 features above the fold (visible without scrolling). Generate suggestions for only those 5. This takes maybe 500 tokens, 2-3 seconds.
+
+As student scrolls down, next 5 features come into view. Generate those in background while student reads the first 5. By the time they scroll to see them, they're ready.
+
+Below-fold features load lazily. Don't generate until user actually scrolls to them or specifically asks.
+
+Result: Faster perceived load time, fewer wasted API calls for features user might not see.
+
+STEP 5: Feature-Specific Execution
+Feature 1: Smart Topic Suggestions
+
+Step A: Get all topics in syllabus with their current status (% learned, score, time spent)
+
+Step B: Calculate weakness score for each topic. Weakness = (100 - current_score) × importance_weight. Topics with high weakness need focus.
+
+Step C: Filter topics: Only show unfinished topics or low-score topics. Exclude already-mastered topics.
+
+Step D: Sort by weakness score. Get top 5.
+
+Step E: Call Groq with these top 5 plus student context: "This student has weak Thermodynamics (45% score, but it's important), average Mechanics (75% score), and strong Organic (88%). Next suggested topic considering prerequisites, weak areas, exam importance: ?"
+
+Step F: Groq returns ranked top 2-3 with reasoning
+
+Step G: Display: "Next Topic: Thermodynamics. Why: It's your weakest area and prerequisite for Advanced Topics. Estimated time: 15 hours. Start with Entropy concept."
+
+Feature 8: Dynamic Rescheduling
+
+Step A: Check original schedule. Was it followed?
+
+Step B: Compare: topics_planned_this_week vs topics_actually_covered_this_week
+
+Step C: If coverage < 80% of plan: Recalculate
+
+Step D: Identify high-priority topics that are still pending
+
+Step E: Redistribute pending topics across remaining weeks, prioritizing high-importance low-coverage topics
+
+Step F: Call Groq: "Original schedule fell behind. Student covered only 60% of planned topics. Remaining 40% includes Thermodynamics (weak, important) and Waves (medium). Remaining weeks: 6. Suggest optimal rescheduling."
+
+Step G: Groq returns adjusted schedule
+
+Step H: Display: "Schedule Updated: Fallen behind by 1 week. New priority: Finish Thermodynamics by Day 21, then Waves, then catch-up revision."
+
+Feature 14: Difficulty Prediction
+
+Step A: Get topic metadata: typical difficulty (easy/medium/hard)
+
+Step B: Get student's historical data on similar topics
+
+Step C: Algorithm calculates: If student struggled with "similar" topics, this topic will be harder for them
+
+Step D: Difficulty_for_student = base_difficulty × adjustment_factor (based on historical similarity)
+
+Step E: Call Mistral (advanced reasoning): "Topic: Gravitation. Base difficulty: Medium (typical JEE students take 10 hours). Student profile: Struggled with conceptual topics like Entropy, but quick with formula-based topics like Kinematics. Estimate difficulty and time for Gravitation for this student."
+
+Step F: Mistral returns: "For this student: Hard (not medium). They struggle with conceptual depth. Estimate: 18 hours instead of typical 10 hours. Recommend: Focus on conceptual understanding, not formulas."
+
+Step G: Display: "Gravitation: Estimated Hard. Why: You find conceptual topics challenging. We estimate 18 hours. Suggest: Start with 3 YouTube videos on concepts, then formulas, then problems."
+
+Feature 18: Daily Study Tips
+
+Step A: Get today's scheduled topic (from dynamic schedule)
+
+Step B: Check cache for tips on this topic
+
+Step C: If cache hit: Use cached tips (they don't change within 24 hours)
+
+Step D: If cache miss: Call Groq: "Today's topic: Entropy. Generate 3 practical study tips for JEE students struggling with entropy. Make tips actionable and intuitive. Include real-world analogy."
+
+Step E: Groq returns: "Tip 1: Use ice cream melting analogy...", "Tip 2: Focus on disorder at molecular level, not confusion", "Tip 3: Draw molecules before and after each process"
+
+Step F: Cache these tips for 24 hours
+
+Step G: Display as morning notification: "Daily Tip: Today you're studying Entropy. Remember: Entropy = disorder at molecular level. Visualize molecules moving. Use the ice cream analogy..."
+
+STEP 6: Logging for Optimization
+
+Track every suggestion:
+
+When Feature 1 (Topic Suggestion) is generated, log: user_id, feature_id=1, model_used="groq", tokens=180, cache_hit=false, suggestion_text="Thermodynamics", displayed=true, acted_on_after_1hr=true, acted_on_after_24hr=true, timestamp="2025-11-01T06:30Z"
+
+Over time, analyze: Which features have high "acted_on" rate? Which have low? Which features waste tokens? Which could be cached longer?
+
+Use this data to optimize: If Topic Suggestion has 95% acted_on rate but Motivational Message has 40%, increase funding for Topic Suggestion generation, reduce for Motivational.
+
+STEP 7: Error Handling
+
+If AI fails to generate a feature:
+
+Level 1: Return cached result from 7 days ago (not perfect, but still valid)
+
+Level 2: Return algorithm-only result (less personalized but functional). For example, if AI fails for Topic Suggestion, return algorithmic top-5 without AI ranking
+
+Level 3: Return generic fallback. For example, if motivational message AI fails, show generic "You're doing great, keep studying"
+
+Never show error to student. Always have a graceful fallback.
+
+STEP 8: Model Selection Per Feature
+
+For efficiency, different features use different models:
+
+Fast features (Quick suggestions): Groq GPT-OSS 20B (fastest, cheapest)
+
+Personalized features (Need reasoning): Groq Llama 3.3 70B (more reasoning capacity)
+
+Complex prediction features: Mistral (advanced reasoning)
+
+Motivational features: Can use precomputed + Groq
+
+Performance analysis: Gemini (complex analysis capability)
+
+
+
+Perfect! Glad it's looking clean now! Here's PROMPT 7: MISTRAL AI INTEGRATION (DETAILED):
+
+PROMPT 7: MISTRAL AI INTEGRATION AS ADVANCED FALLBACK
+What This Does:
+
+Add Mistral AI as a Tier 4 fallback provider for advanced reasoning tasks. Mistral excels at complex multi-step reasoning, mathematical problem-solving, and multimodal tasks (understanding images). It serves as an additional advanced reasoning option when Groq or Gemini aren't sufficient.
+
+Why Mistral?
+
+Different AI models have different strengths. Groq is fast and cheap. Gemini is good at web search and multimodal. Mistral is specialized in advanced reasoning and complex logic chains. For features like "Difficulty Prediction" which needs deep analysis of prerequisites and learning patterns, or "Performance Analysis" which needs to connect multiple data points, Mistral's reasoning capabilities shine. We add it as Tier 4 fallback so primary providers handle 95% of traffic, Mistral handles complex cases.
+
+The 3 Mistral Models:
+
+Mistral Small is the lightweight model. It's cheap and fast, good for straightforward reasoning tasks. Use when we need reasoning but speed matters more than depth.
+
+Mistral Large is the powerful model. It has advanced reasoning capability comparable to Gemini. Use for complex multi-step analysis like "Analyze this student's entire learning pattern across 50 topics and predict which topics they'll master by exam date."
+
+Pixtral 12B is the multimodal model. It can read images. Use when student uploads a handwritten note or a book page image, and we need to extract and analyze information from it.
+
+STEP 1: Add Mistral API Client
+
+Create a new file mistral.ts or mistral-client.ts that initializes Mistral API connection.
+
+Initialize with Mistral API key from environment variables. Set up three separate clients or configurations for the three models.
+
+Handle authentication, request formatting, response parsing specific to Mistral API.
+
+Implement retry logic with exponential backoff (if Mistral fails, retry after 2 seconds, then 4 seconds, then 8 seconds).
+
+Set timeout to 25 seconds (Mistral responses usually come within 20 seconds, 25-second timeout gives buffer).
+
+STEP 2: Integrate Into AI Service Manager (Prompt 3)
+
+In the AI Service Manager from Prompt 3, add Mistral to the fallback chain as Tier 4.
+
+Current chain:
+
+ Tier 1: Primary model (Gemini/Groq based on query type)
+
+ Tier 2: Alternative Groq model
+
+ Tier 3: Cerebras
+
+ Tier 4: NEW - Mistral
+
+ Tier 5: OpenRouter
+
+ Tier 6: Cache/Graceful degradation
+
+When Tier 3 (Cerebras) fails, instead of jumping to Tier 5 (OpenRouter), check if Tier 4 (Mistral) is available and under rate limit. If yes, try Mistral first because it's cheaper and more capable than OpenRouter.
+
+STEP 3: Determine When To Use Mistral Proactively (Not Just As Fallback)
+
+Mistral shouldn't just be used when others fail. Use it proactively for specific high-value features that benefit from advanced reasoning:
+
+Feature 13 (Mastery Prediction): Needs to analyze: current score, learning velocity, topic difficulty, prerequisite mastery, exam date, student's learning style. Mistral's multi-step reasoning is perfect. When Difficulty Prediction feature triggers, directly route to Mistral instead of Groq.
+
+Feature 14 (Difficulty Prediction): Needs to correlate: topic characteristics, student's historical performance on similar topics, learning curve, prerequisite knowledge. Route to Mistral directly.
+
+Feature 4 (Performance Analysis): Deep analysis of why student is performing at current level. Needs to consider: score history, time spent, practice questions done, weak concept areas, previous attempts, etc. Route to Mistral.
+
+Feature 21 (Practice Recommendations): Needs to recommend specific questions based on: student's weak areas, past performance on similar questions, difficulty progression, concept prerequisites. Route to Mistral.
+
+STEP 4: Track Mistral Rate Limits
+
+Mistral gives 500 requests per month on free tier. We need to track this carefully.
+
+In the rate limit manager, add Mistral tracking: Initialize monthly counter to 0 on first day of month. Each time Mistral API is called, increment counter by 1. Log timestamp of each call.
+
+At 50% usage (250 calls): Log info message "Mistral: 50% monthly quota used"
+
+At 80% usage (400 calls): Log warning "Mistral: 80% quota used. Consider reducing Mistral for non-critical features"
+
+At 95% usage (475 calls): Stop proactive Mistral usage. Only use as fallback if other providers fail.
+
+At 100% usage (500 calls): Stop using Mistral entirely. Skip to OpenRouter or graceful degradation.
+
+STEP 5: Cost Calculation & Optimization
+
+Mistral has pricing: Mistral Small is cheap (~0.14 per million tokens), Mistral Large is expensive (~5.7 per million tokens).
+
+For requests routed to Mistral, calculate cost: If request uses 500 tokens input + 300 tokens output = 800 tokens total. If using Mistral Large at 5.7 per million tokens, cost = 800/1,000,000 × 5.7 = ~$0.0000046.
+
+Log all costs. Monthly cost tracking: If Mistral costs exceed $0.50/month, consider reducing usage or switching to cheaper alternative.
+
+STEP 6: Multimodal Capability - Using Pixtral
+
+When student uploads an image (like a handwritten note or textbook page), use Pixtral to analyze it.
+
+Feature: Image-Based Study Material Analysis
+
+Step A: Student uploads image from device or Google Drive
+
+Step B: App detects it's an image, triggers multimodal feature
+
+Step C: Call Pixtral with the image: "This is a study material image. Extract all text and concepts. Identify topics covered. List key equations/formulas if any. Summarize in 2-3 sentences."
+
+Step D: Pixtral analyzes the image and returns extracted text + concepts
+
+Step E: App displays: "Detected topics: Thermodynamics, Entropy, First Law. Key concepts: Heat transfer, Energy conservation. Recommendation: This covers week 2 of your schedule. Study this before attempting practice problems."
+
+Step F: Store the analyzed information for later reference
+
+Implementation: When image is uploaded, send to Pixtral API with the image data. Pixtral processes image and returns text extraction + analysis.
+
+STEP 7: Error Handling For Mistral
+
+If Mistral fails:
+
+Check error type. If it's rate limit error (500 calls exceeded): Skip Mistral for rest of month, use OpenRouter instead.
+
+If it's timeout (response takes > 25 seconds): Log it, but don't retry Mistral for this request. Move to next tier.
+
+If it's API error (4xx error): Log error, try OpenRouter.
+
+If it's authentication error (API key invalid): Alert user, disable Mistral temporarily.
+
+Never show error to student. Always have fallback.
+
+STEP 8: Response Format From Mistral
+
+Mistral returns responses similar to other models. Standardize the response format:
+
+When Mistral is used for Feature 13 (Mastery Prediction), the response should be formatted as:
+
+"Based on your current performance (78% in Mechanics), learning velocity (improving 2% per day), and remaining time (45 days), you will master Mechanics by Day 32. You have 13 days buffer before exam. Confidence: 92%."
+
+Parse this response, extract key metrics, store in database, display to student.
+
+STEP 9: Configuration In Settings
+
+In Settings Panel Tab 2 (Model Overrides), add option for student to force Mistral for specific features if they want advanced reasoning for that feature.
+
+For example: Student can set "Performance Analysis: Use Mistral (not Groq)" if they want deeper analysis even though it costs more and is slower.
+
+Alternatively, user can configure in backend: Which features should route to Mistral proactively vs. as fallback.
+
+STEP 10: Logging For Mistral
+
+Log every Mistral usage to api_usage_logs:
+
+When Feature 13 (Mastery Prediction) calls Mistral, log:
+
+user_id: xyz
+feature_id: 13
+feature_name: "Mastery Prediction"
+model_used: "mistral-large"
+tokens_input: 450
+tokens_output: 220
+cost_estimate: 0.0000038
+latency_ms: 3200
+success: true
+timestamp: 2025-11-01T06:40:00Z
+
+Aggregate this data to show: This month, Mistral was used 120 times for Mastery Prediction, 85 times for Performance Analysis, costing $0.32 total.
+
+STEP 11: Monthly Reset
+
+On first day of month (Nov 1, Dec 1, etc.), reset Mistral counter to 0.
+
+Alert user: "Mistral monthly quota reset. Starting with 500 requests for this month."
+
+STEP 12: Fallback Chain Updated
+
+The updated 6-tier fallback now looks like this:
+
+Tier 1: Primary (Gemini for time-sensitive, Groq for others)
+
+Tier 2: Alternative Groq (different model)
+
+Tier 3: Cerebras
+
+Tier 4: Mistral Small (if not near monthly limit)
+
+Tier 5: OpenRouter
+
+Tier 6: Cache or graceful degradation
+
+Integration Points:
+
+In AI Service Manager, when routing requests, check feature type. If it's Feature 13, 14, 4, 21, try routing to Mistral first (Tier 1 for these features). For other features, Mistral is Tier 4.
+
+In settings panel, show Mistral status: "Mistral: 120/500 monthly quota used. Features routing to Mistral: Mastery Prediction, Difficulty Prediction, Performance Analysis, Practice Recommendations."
+
+In dashboard, show Mistral cost in cost breakdown.
+
+
+PROMPT 7 COMPLETE
+
+Excellent! ✅ Now here's **PROMPT 8: GOOGLE DRIVE FILE ANALYSIS (DETAILED):**
+
+***
+
+# **PROMPT 8: GOOGLE DRIVE FILE ANALYSIS & SMART DOCUMENT PROCESSING**
+
+## **What This Does:**
+
+Allow students to upload study materials from Google Drive (PDFs, images, documents). The system extracts content using AI and provides intelligent analysis and suggestions.
+
+***
+
+## **Why This Feature?**
+
+Students have notes, textbooks, past papers stored in Google Drive. Instead of manually entering topics, the system can automatically extract and analyze them. Student uploads a PDF chapter on Thermodynamics, system extracts text, identifies topics covered, detects complexity level, and integrates into their study plan.
+
+***
+
+## **STEP 1: Google Drive OAuth Integration**
+
+Add Google OAuth flow so students can authenticate with their Google Drive account.
+
+When student clicks "Upload from Google Drive", redirect to Google OAuth consent screen. Student logs in and grants permission to BlockWise to access their Google Drive files.
+
+Store the OAuth token securely in the database associated with the student's account. Tokens expire and need refresh - implement token refresh mechanism.
+
+***
+
+## **STEP 2: File Selection & Download**
+
+After OAuth, show student's Google Drive file browser within the app.
+
+Student selects a file (PDF, JPEG, PNG, or DOCX). App downloads the file from Google Drive using the OAuth token.
+
+Store downloaded file temporarily in server memory or cloud storage. File should be available for ~5 minutes while processing.
+
+Supported formats: PDF (most important), JPG/PNG (for handwritten notes or textbook images), DOCX (for notes created in Word).
+
+***
+
+## **STEP 3: Extract Content Based On File Type**
+
+**For PDFs:** Use a PDF parsing library to extract text and metadata. Extract all text, maintain structure (page numbers, sections). If PDF is scanned image (not searchable), use OCR or multimodal AI.
+
+**For Images (JPG/PNG):** Use Gemini 2.0 Flash-Lite multimodal capability. Send image directly to Gemini and ask it to extract text and analyze content.
+
+**For DOCX:** Parse XML structure to extract text while maintaining formatting.
+
+After extraction, clean the text: remove extra whitespace, normalize formatting, remove page numbers/headers/footers.
+
+***
+
+## **STEP 4: Create New Database Table**
+
+Create file_analyses table to store analysis results:
+
+Columns needed:
+
+user_id: Which student uploaded this file
+
+file_name: Original name from Google Drive (e.g., "Thermodynamics_Chapter3.pdf")
+
+drive_file_id: Google Drive file ID (for potential future re-download if needed)
+
+file_type: "pdf", "image", or "docx"
+
+extracted_text: Raw text extracted from file (store first 10,000 characters)
+
+extracted_topics: Array of detected topics (e.g., ["Entropy", "First Law", "Heat Transfer"])
+
+extracted_concepts: Array of key concepts and definitions
+
+ai_analysis: AI's summary and recommendations
+
+difficulty_level: AI's assessment (Easy, Medium, Hard)
+
+suggested_study_time: How long to study this material (in hours)
+
+created_at: When file was analyzed
+
+expires_at: When to delete the analysis (default: 90 days)
+
+file_status: "pending", "analyzing", "completed", "failed"
+
+***
+
+## **STEP 5: Process With Gemini 2.0 Flash-Lite (Multimodal)**
+
+For all file types, use Gemini 2.0 Flash-Lite's multimodal capability.
+
+If file is PDF: Convert pages to images, send to Gemini with instruction: "This is a study material PDF page. Extract all text, topics, concepts, equations, and diagrams. Identify the subject and chapter. List key learning points. Provide 2-3 sentence summary."
+
+If file is image: Directly send to Gemini with same instruction.
+
+If file is DOCX: Convert to images (or send extracted text) to Gemini.
+
+Gemini returns:
+- Extracted content summary
+- List of topics covered
+- Key concepts and definitions
+- Detected subject and chapter
+- Difficulty assessment
+- Estimated study time
+
+***
+
+## **STEP 6: Extract Topics & Concepts**
+
+Parse Gemini's response to extract structured data.
+
+Topics detected: Extract all topics mentioned. For example, if file is about Thermodynamics, extract topics like "Entropy", "First Law of Thermodynamics", "Heat Transfer", "Temperature".
+
+Concepts: Extract key concepts and definitions. Example: "Entropy: measure of disorder in a system", "First Law: Energy cannot be created or destroyed".
+
+Equations: If file contains equations (like PV=nRT), extract and store them.
+
+***
+
+## **STEP 7: Map To Student's Curriculum**
+
+Compare extracted topics against BlockWise's syllabus database.
+
+For example, if extracted topics are ["Entropy", "First Law", "Thermodynamics"], find these in JEE syllabus. Map to: Physics → Thermodynamics → Entropy (Chapter 3.1).
+
+If topics don't exist in syllabus, flag as "unrecognized topics" but still process them.
+
+***
+
+## **STEP 8: Generate Suggestions**
+
+Based on analysis, generate actionable suggestions for student:
+
+Suggestion 1: "This file covers Thermodynamics chapters. Your current score in Thermo is 52%. This material would help you improve. Suggest: Study this material, then attempt 10 practice questions."
+
+Suggestion 2: "This file has 3 chapters. Your schedule has Thermodynamics next week. Recommend: Add this file to your study materials for that week."
+
+Suggestion 3: "Difficulty Level: Hard (this material assumes knowledge of basic physics). Your current prerequisites: 65% complete. Recommend: Review prerequisites first before studying this material."
+
+Suggestion 4: "Estimated time: 8 hours for this material. Your current pace: 2 hours/day. Timeline: 4 days. Your exam is in 45 days. Plenty of buffer time."
+
+***
+
+## **STEP 9: Store Analysis & Link To Study Plan**
+
+Save file_analyses record in database with:
+- extracted_topics
+- ai_analysis
+- difficulty_level
+- suggested_study_time
+- all parsed concepts
+
+Link this file to student's study materials collection. Show in UI: "My Materials" section lists all uploaded files with their analyses.
+
+***
+
+## **STEP 10: Display In App**
+
+Show analysis results to student in a clean card format:
+
+**File Card:**
+
+Top: File name, upload date
+
+Middle: "This file covers: Entropy, First Law, Heat Transfer"
+
+Analysis: "Difficulty: Hard | Time: 8 hours | Status: Ready to study"
+
+Suggestions box: "This material is perfect for your weak area (Thermodynamics). Recommend studying this week."
+
+Action buttons: "Add to Study Plan" | "Download Analysis" | "Delete File"
+
+***
+
+## **STEP 11: Integration With Study Plan**
+
+When student clicks "Add to Study Plan", the file is integrated into their adaptive schedule.
+
+For example, if file covers Thermodynamics and is marked "Hard", system adjusts schedule to allocate more time to Thermodynamics that week.
+
+Show: "Added 'Thermodynamics_Chapter3.pdf' to Week 2 of your study plan. Time allocated: 8 hours."
+
+***
+
+## **STEP 12: Caching Analysis**
+
+Cache the analysis result for 90 days. If same file is accessed again within 90 days, use cached analysis instead of re-processing with Gemini.
+
+If file expires (90 days), delete the analysis and file. Student can re-upload if needed.
+
+***
+
+## **STEP 13: Error Handling**
+
+If Gemini fails to process the file: Show message: "Unable to analyze this file. Try uploading a clearer image or PDF. Supported: PDFs up to 20MB, Images up to 50MB."
+
+If file is corrupted: Show "File is corrupted or in unsupported format."
+
+If file is too large: Show "File is too large (max 20MB). Try splitting into smaller files."
+
+If OCR fails on scanned PDF: Show "This is a scanned PDF and hard to read. Try uploading a digital PDF or clearer image."
+
+***
+
+## **STEP 14: Privacy & Storage**
+
+Files are temporary. After analysis, store only the analysis results (text, topics, concepts) not the actual file.
+
+Delete the actual file after 5 minutes of processing. Keep only the analysis metadata.
+
+User can explicitly delete file analysis from "My Materials" section anytime.
+
+***
+
+## **STEP 15: Multimodal Advantage**
+
+The key advantage of using Gemini 2.0 Flash-Lite is it handles images beautifully. Handwritten notes, textbook photos, diagram-heavy materials - all can be processed.
+
+If student uploads photo of their handwritten notes on Organic Chemistry, Gemini extracts the text, identifies topics, analyzes content, all from an image. No need for manual transcription.
+
+***
+
+## **STEP 16: Analytics**
+
+Track which students use this feature and what materials they upload.
+
+Log: student_id, file_name, topics_extracted, analysis_completion_time, whether_student_acted_on_suggestions.
+
+Use this data to improve analysis accuracy over time.
+
+***
+
+## **Workflow Summary:**
+
+Student clicks "Upload Material" → Selects file from Google Drive → File downloaded → Gemini analyzes content → Topics/concepts extracted → Mapped to curriculum → Suggestions generated → File analysis stored → Student sees analysis card → Can integrate into study plan
+
+***
+
+
+PROMPT 8 COMPLETE
+
+Perfect! ✅ Now here's **PROMPT 9: SETTINGS PANEL WITH 5 TABS (DETAILED):**
+
+***
+
+# **PROMPT 9: SETTINGS PANEL - COMPLETE CONFIGURATION UI (5 TABS)**
+
+## **What This Does:**
+
+Build a comprehensive settings interface where users and power users can configure the entire AI system. 5 separate tabs for different configuration categories.
+
+***
+
+## **STEP 1: Settings Layout**
+
+Create a Settings page with a left sidebar showing 5 tabs:
+
+Tab 1: API Providers
+Tab 2: Model Overrides  
+Tab 3: Fallback Chain
+Tab 4: Chat Settings
+Tab 5: Usage & Monitoring
+
+Only users should access Settings. Add role check: if user_role != "user", show error "Access denied".
+
+***
+
+## **TAB 1: API PROVIDERS - Configure Each Provider**
+
+This tab shows all 6 API providers with their current status and configuration.
+
+**For each provider, display:**
+
+Provider name and icon. API Key status (green checkmark if valid, red X if invalid or missing). Current usage this month. Configured rate limit. Test Connection button. Reset to Default button.
+
+**Groq Section:**
+
+Display: "Groq API Key: - - - - - - - - - - " with toggle to show/hide
+
+Input field: "Rate Limit (requests/minute)" with current value like 500. user can change to 300 or 1000 etc.
+
+Status: "Connected ✓ | 823 requests used this month"
+
+Button: "Test Connection" - when clicked, makes test API call to Groq and shows result: "✓ Success (response time: 240ms)" or "✗ Failed: Invalid API key"
+
+***
+
+**Gemini Section:**
+
+Display API key status similarly
+
+Rate limit field showing 60 (requests per minute)
+
+Separate monthly counter since Gemini has 1500 requests/day limit
+
+Display: "Daily limit: 1500 | Used today: 324 | Reset at midnight UTC"
+
+Status indicator showing: "🟢 Active | 8,420 requests used this month"
+
+***
+
+**Cerebras Section:**
+
+Rate limit field (default 500 requests/minute)
+
+Status: "🟢 Active | 245 requests used this month"
+
+***
+
+**Cohere Section:**
+
+Special display since Cohere tracks monthly (1000 limit not per-minute)
+
+Show: "Monthly Quota: 1000 calls | Used: 652 | Remaining: 348"
+
+Progress bar showing usage percentage
+
+Highlight in yellow when 50% used, red when 80% used
+
+***
+
+**Mistral Section:**
+
+Similar to Cohere (monthly tracking)
+
+Show: "Monthly Quota: 500 calls | Used: 120 | Remaining: 380"
+
+***
+
+**OpenRouter Section:**
+
+Show hourly and daily limits if applicable
+
+Display current usage
+
+***
+
+**Global Actions:**
+
+"Test All Providers" button - runs tests on all 6 providers simultaneously
+
+"Reset All to Defaults" button - resets all rate limits to default values
+
+***
+
+## **TAB 2: MODEL OVERRIDES - Per-Feature Model Selection**
+
+This tab allows users to override which model is used for each of the 22 features.
+
+**Layout:**
+
+List showing all 22 features. For each feature, show: Feature name, Current model, Override field.
+
+**Example rows:**
+
+Feature 1 (Smart Topic Suggestions) | Current: Groq Llama 3.3 70B | Override dropdown: [Select Model...]
+
+Feature 4 (Performance Analysis) | Current: Groq Llama 3.3 70B | Override dropdown: [Select Model...]
+
+Feature 13 (Mastery Prediction) | Current: Mistral Large | Override dropdown: [Select Model...]
+
+***
+
+**Model Selection Dropdown:**
+
+When user clicks override dropdown, show all available models grouped by provider:
+
+Groq:
+- Llama 3.3 70B
+- Llama 3.1 8B Instant
+- GPT-OSS 20B
+- Qwen-3 32B
+
+Gemini:
+- Gemini 2.0 Flash-Lite
+- Gemini 2.0 Flash
+
+Cerebras:
+- Llama 3.3 70B
+
+Mistral:
+- Mistral Small
+- Mistral Large
+- Pixtral 12B
+
+OpenRouter:
+- Various models...
+
+***
+
+**user selects a model:**
+
+Override is saved. Next time that feature is used, it will use the new model instead of default.
+
+Show confirmation: "✓ Feature 13 now uses Mistral Large"
+
+***
+
+**Save/Revert buttons:**
+
+"Save Overrides" - commits all changes
+
+"Revert to Defaults" - resets all 22 features to their original model mappings
+
+***
+
+## **TAB 3: FALLBACK CHAIN CONFIGURATION**
+
+This tab shows the 6-tier fallback chain and allows reordering.
+
+**Display the chain as draggable cards:**
+
+Tier 1: [Groq] [Drag handle] [Can disable]
+Tier 2: [Cerebras] [Drag handle] [Can disable]
+Tier 3: [Mistral] [Drag handle] [Can disable]
+Tier 4: [OpenRouter] [Drag handle] [Can disable]
+Tier 5: [Cache] [Drag handle] [Cannot disable]
+Tier 6: [Graceful Degradation] [Drag handle] [Cannot disable]
+
+***
+
+**Drag to Reorder:**
+
+user can drag Tier 1 to different position. System reorders all tiers automatically.
+
+Example: Drag Mistral to Tier 1 position. Now Mistral becomes first fallback instead of Groq. Groq moves down.
+
+***
+
+**Enable/Disable Tiers:**
+
+Toggle button for each tier (except Tier 5 and 6 which are always active)
+
+If user disables Groq, system won't use Groq even if primary model fails. Will jump to next tier.
+
+***
+
+**Description for each tier:**
+
+"Tier 1: Primary model route. Fast response expected."
+
+"Tier 2: First fallback if Tier 1 fails."
+
+"Tier 3: Second fallback."
+
+"Tier 4: Third fallback."
+
+"Tier 5: Cache retrieval. Uses previously stored responses if all providers fail."
+
+"Tier 6: Graceful degradation. Rule-based response or generic answer if all else fails."
+
+***
+
+**Save/Reset buttons:**
+
+"Save Fallback Configuration" - commits reordering
+
+"Reset to Default Chain" - reverts to original order
+
+***
+
+## **TAB 4: CHAT SETTINGS**
+
+Configure behavior of General Chat and Study Assistant Chat.
+
+**Section A: General Chat**
+
+Toggle: "Enable web search for time-sensitive queries" [ON/OFF]
+
+If enabled, when system detects time-sensitive query (exam dates, forms, etc), it automatically searches web.
+
+If disabled, system skips web search and uses cached/local data.
+
+***
+
+Dropdown: "Cache TTL for general chat responses"
+
+Options: 1 hour, 6 hours (default), 12 hours, 24 hours, 7 days
+
+If set to 6 hours, responses cache for 6 hours before being regenerated.
+
+***
+
+Toggle: "Show model name to users"
+
+If enabled, users see "Powered by Groq Llama 3.3 70B" below responses.
+
+If disabled, model info is hidden from user view.
+
+***
+
+Toggle: "Show response time to users"
+
+If enabled, users see "Response time: 850ms"
+
+If disabled, hidden.
+
+***
+
+**Section B: Study Assistant Chat**
+
+Toggle: "Enable memory system" [ON/OFF]
+
+If enabled, system extracts insights from conversations and stores them (Prompt 5 memory system).
+
+If disabled, no memory extraction happens.
+
+***
+
+Dropdown: "Memory retention period"
+
+Options: 1 month, 3 months, 6 months (default), 8 months, 12 months
+
+Selected value determines how long student memories are kept before deletion.
+
+***
+
+Dropdown: "Cache TTL for study assistant responses"
+
+Options: 15 minutes, 30 minutes (default), 1 hour, 2 hours, 6 hours
+
+Study assistant caches for shorter duration than general chat because student data changes frequently.
+
+***
+
+Toggle: "Include full study context with every request"
+
+If enabled, system sends student's complete performance data, schedule, weak areas with every request. More personalized but uses more tokens.
+
+If disabled, system sends only compressed profile (smaller context, fewer tokens used).
+
+***
+
+**Section C: Language Settings**
+
+Dropdown: "Response language preference"
+
+Options: Hinglish (Roman script) [selected by default], Hindi (Devanagari), English
+
+All responses will be in selected language.
+
+***
+
+Toggle: "Enforce Hinglish-only responses"
+
+If enabled, system will refuse to show responses in any language other than Roman script Hinglish. If AI returns Devanagari, it rejects and regenerates.
+
+If disabled, system accepts responses in selected language as-is.
+
+***
+
+**Save button:**
+
+"Save Chat Settings" - commits all changes
+
+"Reset to Defaults" - reverts to default chat configuration
+
+***
+
+## **TAB 5: USAGE & MONITORING DASHBOARD**
+
+Real-time analytics and monitoring.
+
+**Section A: Provider Status Cards**
+
+For each provider (Groq, Gemini, Cerebras, Cohere, Mistral, OpenRouter), show:
+
+Status indicator: 🟢 (Active/Healthy), 🟡 (Caution), 🔴 (Error)
+
+Usage percentage: "250/500 requests (50%)" with progress bar
+
+Color coding: Green <50%, Yellow 50-80%, Orange 80-95%, Red 95%+
+
+Last updated: "Updated 2 minutes ago"
+
+Test button: "Test Now" to manually test this provider
+
+***
+
+**Section B: Real-Time Graphs**
+
+Graph 1: API Calls This Hour
+
+X-axis: Time (past 60 minutes)
+
+Y-axis: Number of calls
+
+Line showing how many API calls were made each minute
+
+***
+
+Graph 2: Token Usage by Provider
+
+Pie chart showing: Groq 40%, Gemini 30%, Cerebras 15%, Mistral 10%, Cohere 5%
+
+Hover over each slice shows exact count
+
+***
+
+Graph 3: Response Time Distribution
+
+Histogram showing: How many responses came back in <500ms, 500-1000ms, 1000-2000ms, >2000ms
+
+Helps identify slow models
+
+***
+
+**Section C: Rate Limit Status**
+
+For Cohere: "650/1000 monthly calls used (65%)" with progress bar
+
+For Mistral: "125/500 monthly calls used (25%)" with progress bar
+
+Warnings in red if approaching limits
+
+***
+
+**Section D: Fallback Events Log**
+
+Recent table showing when/why system fell back to alternative providers:
+
+Timestamp | Feature | Primary Model | Failed | Fallback Used | Status
+
+2025-11-01 19:40 | Performance Analysis | Groq | Yes (timeout) | Mistral Large | Success
+
+2025-11-01 19:35 | General Chat | Groq | Yes (limit) | Cerebras | Success
+
+2025-11-01 19:30 | Study Assistant | Gemini | No | - | Success (no fallback)
+
+***
+
+**Section E: System Health**
+
+Overall status: "✓ All systems operational"
+
+Or warnings like: "⚠️ Groq: 95% rate limit. Falling back to Cerebras."
+
+API response time average: "850ms"
+
+Cache hit rate this hour: "45%"
+
+***
+
+**Section F: Export Data**
+
+Button: "Download Usage Report (CSV)" - exports all usage data for this month
+
+Button: "Download Fallback Events Log" - exports all fallback events
+
+***
+
+**Auto-refresh:**
+
+Dashboard updates in real-time (every 5 seconds) or manual refresh button.
+
+***
+
+## **STEP 2: Permission Control**
+
+Only users can access Settings. Add this check on page load:
+
+If user.role != "user", show "Access Denied" and redirect.
+
+Log all settings changes: When user changes a setting, log who changed it and when.
+
+Example: "user user 'john@example.com' changed Groq rate limit from 500 to 300 on 2025-11-01 19:45"
+
+***
+
+## **STEP 3: Settings Persistence**
+
+All settings changes are saved to database in a new settings table:
+
+setting_name: "groq_rate_limit"
+setting_value: "300"
+updated_by: "user_user_id"
+updated_at: timestamp
+
+***
+
+## **STEP 4: Application**
+
+When app makes an API call, it reads settings from database to determine:
+
+Which rate limit to enforce for each provider
+Which model to use for each feature
+Fallback chain order
+Web search enablement
+Memory system enablement
+Language preference
+
+All settings are cached in app memory for performance. When user changes a setting, cache is invalidated and reloaded.
+
+***
+
+
+
+PROMPT 9 COMPLETE
+
+Perfect! ✅ Now here's **PROMPT 10: REAL-TIME USAGE DASHBOARD (DETAILED):**
+
+***
+
+# **PROMPT 10: REAL-TIME USAGE DASHBOARD & MONITORING**
+
+## **What This Does:**
+
+Build a live monitoring dashboard that shows real-time system health, API usage, costs, and performance metrics. Unlike Settings Panel which is for configuration, this dashboard is for observation and troubleshooting.
+
+***
+
+## **STEP 1: Dashboard Architecture**
+
+Dashboard updates in real-time every 5 seconds. Use WebSocket or polling to fetch latest data from server. If WebSocket not available, use HTTP polling with 5-second interval.
+
+user accesses via: Menu → Dashboard or /user/dashboard
+
+Only users can view. Show "Access Denied" for non-users.
+
+***
+
+## **STEP 2: Provider Status Section**
+
+Display 6 status cards, one for each provider.
+
+**Each card shows:**
+
+Provider name with icon (Groq logo, Gemini logo, etc)
+
+Status indicator: Green circle (healthy) = responding normally, Yellow circle (caution) = approaching limits, Red circle (error) = not responding or exceeded limits
+
+Current usage: "385 / 500 requests" (showing current requests in current minute or hour, depending on provider)
+
+Usage percentage: "77%" displayed prominently
+
+Progress bar: Visual bar showing 77% filled. Color: Green <50%, Yellow 50-80%, Orange 80-95%, Red 95%+
+
+Last call timestamp: "Last called: 2 seconds ago"
+
+Next reset info: "Limit resets in: 48 seconds" (for minute-based limits) or "Limit resets: Tomorrow at 00:00 UTC" (for daily/monthly limits)
+
+Quick action button: "Test Now" - clicking makes a test API call and shows result
+
+***
+
+**For Cohere (monthly limit):**
+
+Special display: "650 / 1000 monthly calls (65%)"
+
+Shows calendar date range: "Oct 1 - Oct 31, 2025"
+
+Reset info: "Resets: November 1, 2025"
+
+***
+
+**For Mistral (monthly limit):**
+
+Similar to Cohere: "125 / 500 monthly calls (25%)"
+
+***
+
+***
+
+## **STEP 3: Real-Time Graphs Section**
+
+**Graph 1: API Calls Over Time (Last Hour)**
+
+X-axis: Time slots (past 60 minutes, each marker = 10 minutes)
+
+Y-axis: Number of calls (0-100+)
+
+Multi-line chart showing:
+- Groq (blue line)
+- Gemini (red line)
+- Cerebras (green line)
+- Mistral (purple line)
+- Cohere (orange line)
+- OpenRouter (gray line)
+
+Shows current spike: if Groq is handling 50 calls right now, blue line peaks at 50.
+
+Legend showing which line is which provider.
+
+Hover over data point shows exact number: "Groq: 45 calls, Cerebras: 12 calls" etc.
+
+***
+
+**Graph 2: Token Usage Breakdown (Pie Chart)**
+
+Shows percentage of total tokens consumed by each provider this month.
+
+Example:
+- Groq: 45% (large slice)
+- Gemini: 30% (medium slice)
+- Cerebras: 15% (small slice)
+- Mistral: 7%
+- Cohere: 3%
+
+Hover over slice shows: "Groq: 450,000 tokens consumed"
+
+***
+
+**Graph 3: Response Time Distribution (Histogram)**
+
+X-axis: Response time buckets (0-500ms, 500ms-1s, 1-2s, 2-5s, >5s)
+
+Y-axis: Number of responses in each bucket
+
+Bar chart showing:
+- Green bar for 0-500ms: 8,250 responses
+- Yellow bar for 500ms-1s: 2,100 responses
+- Orange bar for 1-2s: 850 responses
+- Red bar for 2-5s: 120 responses
+- Red bar for >5s: 15 responses
+
+Hover shows exact counts. Helps identify which provider models are slow.
+
+***
+
+**Graph 4: Cache Hit Rate**
+
+Line chart showing cache hit % over last 24 hours.
+
+Y-axis: 0-100%
+
+Each data point = hourly cache hit rate
+
+Example: 8am: 35%, 9am: 42%, 10am: 48%, 11am: 52%
+
+Shows if caching is effective.
+
+***
+
+## **STEP 4: Rate Limit Warnings Section**
+
+**Display all active warnings in yellow/red boxes:**
+
+"⚠️ Groq approaching limit: 425/500 requests used (85%)"
+
+"🔴 Cohere: 980/1000 monthly calls used (98%)"
+
+"⚠️ Mistral: 475/500 monthly calls used (95%)"
+
+If no warnings, show: "✓ All providers operating normally"
+
+***
+
+## **STEP 5: Fallback Events Log**
+
+Table showing recent fallback events (when system switched to alternative provider):
+
+Columns: Timestamp | Feature Name | Primary Model | Reason Failed | Fallback Model Used | Final Status
+
+Example rows:
+
+19:42:15 | Smart Topic Suggestion | Groq-Llama | Rate limit exceeded | Cerebras | Success
+
+19:41:08 | Performance Analysis | Groq-Llama | Timeout (>25s) | Mistral Large | Success
+
+19:40:23 | General Chat | Groq-GPT | No failure | - | Success (no fallback)
+
+19:39:45 | Study Assistant | Gemini | Invalid API key | Groq-Llama | Success
+
+19:39:12 | Mastery Prediction | Mistral | Rate limit | OpenRouter | Success
+
+***
+
+Pagination: Show 20 most recent events. "Previous" and "Next" buttons to navigate.
+
+Auto-refresh: New events appear at top every 5 seconds.
+
+Export button: "Download Fallback Log (CSV)" - exports all events for analysis
+
+***
+
+## **STEP 6: System Health Summary**
+
+Top-level status card showing overall system health:
+
+Overall Status: "✓ All Systems Operational" or "⚠️ Degraded Performance" or "🔴 Multiple System Failures"
+
+Key metrics:
+- Average response time: "847ms"
+- Cache hit rate this hour: "45%"
+- Total API calls this hour: "1,245"
+- Fallback events this hour: 3
+- Error rate: "0.2%" (only 2 failed requests out of 1000)
+
+***
+
+## **STEP 7: Feature Usage Breakdown**
+
+Bar chart showing which of the 22 features use the most API calls:
+
+X-axis: Feature names (abbreviated or numbered)
+
+Y-axis: Number of API calls
+
+Bars sorted by height (most-used features first)
+
+Example:
+- Feature 1 (Smart Topic Suggestion): 450 calls
+- Feature 3 (Performance Insights): 380 calls
+- Feature 14 (Daily Tips): 350 calls
+- Feature 6 (Natural Language): 220 calls
+- etc.
+
+Hover over bar shows exact count and feature name.
+
+***
+
+## **STEP 8: Cost Breakdown (If Applicable)**
+
+Show estimated costs by provider (if you're tracking costs):
+
+Groq: $0.00 (free tier, no direct cost)
+
+Gemini: $0.00 (free tier)
+
+Cerebras: $0.00 (free tier)
+
+Cohere: $0.15 (1000 calls at ~$0.00015 per call)
+
+Mistral: $0.08 (125 calls, mix of Small and Large)
+
+OpenRouter: $0.03 (small usage)
+
+Total estimated cost this month: $0.26
+
+***
+
+## **STEP 9: Cohere Embed Specific Tracking**
+
+Since Cohere embeddings are used heavily for semantic search, show dedicated section:
+
+Cohere Embeddings Usage:
+- Monthly quota: 1000 calls
+- Used: 650 calls (65%)
+- Remaining: 350 calls
+- Days left in month: 7
+- Projected usage by end of month: 900 (safe)
+- Status: ✓ On track
+
+If projected usage exceeds 1000, show warning: "⚠️ Projected to exceed monthly quota by end of month. Consider reducing embedding generation."
+
+***
+
+## **STEP 10: Manual Controls**
+
+**Test All Providers button**
+
+Clicking makes simultaneous test calls to all 6 providers. Shows results:
+
+✓ Groq: Success (240ms)
+✓ Gemini: Success (1200ms)
+✓ Cerebras: Success (280ms)
+✓ Cohere: Success (150ms)
+✓ Mistral: Success (3200ms)
+✓ OpenRouter: Success (800ms)
+
+Or marks failed ones with ✗
+
+***
+
+**Clear Cache button**
+
+Clicking clears all cached responses. Next request will call AI fresh (not cached).
+
+Confirmation: "Clear all cached responses? This cannot be undone."
+
+***
+
+**Restart Monitoring button**
+
+Restarts the real-time monitoring system.
+
+***
+
+**Export Dashboard Report button**
+
+Exports current dashboard snapshot as PDF with all graphs and metrics.
+
+***
+
+## **STEP 11: Time Range Selector**
+
+Allow filtering by time range:
+
+Dropdown options:
+- Last 1 hour (selected by default)
+- Last 6 hours
+- Last 24 hours
+- Last 7 days
+- Last 30 days
+- Custom date range
+
+Selecting different range updates all graphs to show data for that period.
+
+***
+
+## **STEP 12: Alert Configuration**
+
+user can set up alerts:
+
+If Groq usage > 90%, send email alert
+
+If any provider has error rate > 5%, send Slack notification
+
+If monthly spend exceeds $X, send alert
+
+These are optional. Default: No alerts set.
+
+***
+
+## **STEP 13: Data Sources**
+
+Dashboard reads from:
+
+Real-time API call logs (updated every 5 seconds)
+
+Provider status APIs (hitting each provider's status endpoint)
+
+Supabase database for historical data
+
+Cache statistics from Redis/cache layer
+
+***
+
+## **STEP 14: Mobile Responsiveness**
+
+On mobile, stack cards vertically. Graphs become single-line graphs. Core metrics still visible without excessive scrolling.
+
+***
+
+## **STEP 15: Dark Mode / Light Mode**
+
+Support both themes. Default: Follow system preference.
+
+Toggle button in top-right: Sun icon (light mode) / Moon icon (dark mode).
+
+***
+
+PROMPT 10 COMPLETE
+
+Perfect! ✅ Now here are **PROMPT 11 & 12 COMBINED (Rate Limit Manager + Memory Cleanup + Monitoring):**
+
+***
+
+# **PROMPT 11 & 12: RATE LIMIT MANAGER + MEMORY CLEANUP & MONITORING**
+
+## **What These Do:**
+
+Prompt 11 builds a background system that continuously monitors and enforces rate limits across all 6 providers. Prompt 12 builds scheduled jobs for database maintenance and system health checks. Together they keep the system running smoothly and prevent crashes from rate limits or database bloat.
+
+***
+
+# **PROMPT 11: RATE LIMIT MANAGER**
+
+## **STEP 1: Real-Time Usage Tracking**
+
+Create an in-memory tracker that monitors current usage for each provider.
+
+For each provider, maintain a sliding window counter:
+
+Groq: Track requests in the last 60 seconds. Store timestamp of each request. Current usage = count of requests in last 60 seconds.
+
+Gemini: Track in last 60 seconds (1500 requests/day means ~1 per second, limit is 60 per minute)
+
+Cerebras: Track in last 60 seconds
+
+Cohere: Track requests in current calendar month. Store count, increment on each call.
+
+Mistral: Track requests in current calendar month.
+
+OpenRouter: Track requests in current hour.
+
+***
+
+## **STEP 2: Usage Check Before Every API Call**
+
+Before making ANY API call to a provider, check: Is current usage below the limit?
+
+Implementation pseudocode:
+
+```
+function canCallProvider(provider_name):
+  current_usage = getProviderUsage(provider_name)
+  configured_limit = getConfiguredLimit(provider_name)
+  usage_percentage = (current_usage / configured_limit) * 100
+  
+  if usage_percentage >= 100:
+    return false  // Hard limit reached
+  else:
+    return true   // Can proceed
+```
+
+***
+
+## **STEP 3: Tiered Response Based On Usage Percentage**
+
+Not everything is binary. System should gracefully handle different usage levels.
+
+If usage < 50%: Normal operation, no action needed.
+
+If usage 50-80%: Still allow calls, but log a warning and start caching responses more aggressively to reduce future calls.
+
+If usage 80-95%: Allow calls, but trigger automatic fallback decisions. If current provider at 90%, prefer next tier provider. Log: "Groq at 90% usage, prefer Cerebras for next call"
+
+If usage 95%+: Stop using this provider. All requests skip to next tier. Log: "Groq at 95% usage, disabled. Using Cerebras instead"
+
+If usage 100%: Provider completely disabled until reset.
+
+***
+
+## **STEP 4: Dynamic Fallback Triggering**
+
+When primary provider approaches limit, automatically route to next tier without user knowing.
+
+Example scenario:
+
+User sends question → AI Service Manager selects Groq → Rate limit manager checks Groq usage → Groq at 92% → Skip Groq, use Cerebras instead → Response comes back from Cerebras → API log shows "fallback_used: true, reason: primary_limit_approached"
+
+***
+
+## **STEP 5: Fair User Queuing**
+
+If ALL providers hit 95%+ limits globally, don't drop requests. Queue them.
+
+Maintain a request queue: Queue new API requests in order received.
+
+When a limit resets (e.g., minute resets for Groq), process queued requests from front of queue.
+
+Show user: "High traffic. Your request is queued. Estimated wait: 45 seconds. Position in queue: 3rd"
+
+This prevents losing requests and ensures fairness.
+
+***
+
+## **STEP 6: Sliding Window Implementation**
+
+For minute-based limits (Groq, Gemini, Cerebras), use sliding window:
+
+Maintain array of request timestamps: [1725282600001, 1725282602345, 1725282605123, ...]
+
+When checking usage, count how many timestamps are within last 60 seconds.
+
+When making new request, append current timestamp.
+
+Older timestamps (> 60 seconds old) are automatically ignored.
+
+This is accurate and doesn't require minute boundary resets.
+
+***
+
+## **STEP 7: Monthly Counter Reset**
+
+For Cohere and Mistral (monthly tracking), reset on first day of month.
+
+Implement cron job that runs at 00:00 UTC on 1st of every month:
+
+Set cohere_monthly_count = 0
+Set mistral_monthly_count = 0
+Log: "Monthly quotas reset for November"
+
+***
+
+## **STEP 8: Alerts & Notifications**
+
+When usage hits critical thresholds, notify user:
+
+At 80% usage: Log info message (visible in dashboard yellow warning)
+
+At 95% usage: Email user: "Alert: Groq at 95% monthly quota. Requests now using fallback."
+
+At 100% usage: Send Slack notification if configured: "CRITICAL: Groq quota exhausted. All requests now routed to Cerebras/OpenRouter."
+
+***
+
+## **STEP 9: Rate Limit Metadata Tracking**
+
+For each API call, store in api_usage_logs:
+
+usage_at_time_of_call: What was the usage % when this call was made?
+
+was_at_risk: Was this provider >= 80% usage?
+
+fallback_considered: Was fallback an option?
+
+fallback_chosen: Was fallback actually used?
+
+This data helps analyze patterns: "Groq is hitting limits at 3pm every day, consider increasing limit or distributing load"
+
+***
+
+## **STEP 10: Adaptive Rate Limiting**
+
+If a provider consistently hits limits (say, every day at same time), automatically suggest increasing that limit:
+
+Log pattern: "Groq hits 95% limit daily at 3-4pm UTC"
+
+user sees suggestion in Settings Tab 1: "Groq consistently exceeds configured limit. Consider increasing from 500 to 750 requests/minute"
+
+user can click button: "Increase to 750" → Applied immediately
+
+***
+
+***
+
+# **PROMPT 12: MEMORY CLEANUP & MONITORING**
+
+## **STEP 1: Daily Cleanup Job (Runs at Midnight UTC)**
+
+Create scheduled job that runs at 00:00 UTC every day.
+
+Job name: daily-memory-cleanup
+
+What it does:
+
+Find all records in study_chat_memory table where expires_at < current_date
+
+Delete them
+
+Log count: "Deleted 342 expired memories (8+ months old)"
+
+Freed storage: "Freed ~50MB"
+
+***
+
+## **STEP 2: Weekly Summary Generation (Runs Sunday Midnight)**
+
+Create job: weekly-summary-generation
+
+Runs: Every Sunday at 00:00 UTC
+
+For each student:
+
+Get all study_chat_memory records created in the past 7 days (Monday-Sunday)
+
+Extract key insights (compress 100+ individual memories into 3-5 main themes)
+
+Call Groq: "Summarize this student's week: [list of insights]. Provide 1 paragraph summary."
+
+Groq returns: "This week: Student focused on Organic Chemistry (improved 15%), started Thermodynamics (still weak), maintained Mechanics at 80%. Next week: Continue Thermodynamics, increase practice questions."
+
+Store summary in memory_summaries table
+
+TTL: Set to 1 week (regenerated next Sunday)
+
+Log: "Generated weekly summary for 512 students"
+
+***
+
+## **STEP 3: Monthly Archive Job (Runs on 1st of Month)**
+
+Job: monthly-archive
+
+Runs: 1st of every month at 00:00 UTC
+
+For each monthly summary older than 1 month:
+
+Mark as archived (don't delete)
+
+These archived summaries take less space in active queries
+
+users can still access them for historical analysis
+
+***
+
+## **STEP 4: Student Profile Update (After Each Study Session)**
+
+Not a scheduled job, but triggered event-based.
+
+After each study session completes:
+
+Update student_ai_profile table with latest data
+
+Compress profile to ~200 characters
+
+Example: "JEE 2025. Physics 78%, Chemistry 82%, Maths 75%. Weak: Thermodynamics (45%), Organic reactions (52%). Strong: Kinematics (88%). Preferred: Visual + problem-based. Revision pending: 8 topics."
+
+This compressed profile is included in EVERY AI request so context is fresh
+
+TTL: No expiry (always current)
+
+***
+
+## **STEP 5: Database Vacuum & Optimization**
+
+Job: database-maintenance
+
+Runs: Weekly on Saturday at 02:00 UTC (off-peak time)
+
+What it does:
+
+Vacuum Supabase (removes deleted rows, reclaims space)
+
+Reindex tables: chat_messages, study_chat_memory, api_usage_logs
+
+Analyze query statistics for query planner optimization
+
+Update statistics on all tables
+
+Result: Faster queries, recovered disk space
+
+Log: "Vacuumed database. Recovered 200MB. Query performance improved 12%."
+
+***
+
+## **STEP 6: Cache Cleanup Job**
+
+Job: cache-cleanup
+
+Runs: Every 6 hours
+
+Find all cache entries where TTL has expired
+
+Delete them
+
+Log: "Cleared 1,250 expired cache entries. Cache size reduced from 500MB to 450MB."
+
+***
+
+## **STEP 7: Old Conversation Archiving**
+
+Job: archive-old-conversations
+
+Runs: Monthly on 15th
+
+Find chat_conversations where last_activity < 60 days ago
+
+Mark as archived (move to archive table if you want to separate)
+
+These chats are still accessible but don't clutter active queries
+
+Reduce active chat count from 10,000 to 3,500 for faster listing
+
+***
+
+## **STEP 8: Health Checks (Every 5 Minutes)**
+
+Background job (not scheduled, but continuous):
+
+job: system-health-check
+
+Runs continuously, checks every 5 minutes:
+
+Test connectivity to each of 6 AI providers (Groq, Gemini, Cerebras, Cohere, Mistral, OpenRouter)
+
+For each provider, make lightweight test call:
+
+If success: Status = "✓ Healthy"
+
+If fail: Status = "✗ Error". Record error message. Alert user if already in error state for > 15 mins.
+
+Check database connectivity (simple query like SELECT 1)
+
+If fail: Alert user immediately.
+
+Check Redis/cache connectivity
+
+If fail: Alert user.
+
+Check available disk space
+
+If < 10% free: Alert user "Low disk space"
+
+If < 5% free: Critical alert
+
+Log all health check results for trend analysis
+
+***
+
+## **STEP 9: Usage Pattern Analysis**
+
+Job: analyze-usage-patterns
+
+Runs: Daily at 01:00 UTC
+
+Analyze API usage data from yesterday:
+
+Which features used most API calls?
+
+Which models were used most?
+
+Which models had best performance (fastest responses)?
+
+Which had most errors?
+
+Generate report: "Yesterday: 15,200 API calls. Groq: 40% (avg 800ms), Gemini: 35% (avg 1200ms), Cerebras: 20% (avg 350ms). Errors: 0.3% (45 failed calls)."
+
+Store report for user review
+
+Use data to identify optimization opportunities: "Cerebras is fastest but underutilized. Consider routing more calls there."
+
+***
+
+## **STEP 10: Storage Monitoring**
+
+Job: storage-monitoring
+
+Runs: Daily
+
+Check database size
+
+Check cache size
+
+Check file storage (uploaded study materials)
+
+If growing rapidly (e.g., 20% increase in 1 day), alert user: "Database growing fast. Check for issues."
+
+Predict when storage will be full based on growth rate: "At current growth rate, database will be full in 45 days."
+
+***
+
+## **STEP 11: Monthly Quota Reset (Cohere & Mistral)**
+
+Job: monthly-quota-reset
+
+Runs: 1st of every month at 00:00 UTC
+
+Reset Cohere counter to 0
+
+Reset Mistral counter to 0
+
+Log: "Monthly quotas reset. Cohere: 0/1000, Mistral: 0/500"
+
+***
+
+## **STEP 12: Backup & Disaster Recovery**
+
+Job: automated-backup
+
+Runs: Daily at 03:00 UTC
+
+Create backup of entire Supabase database
+
+Store backup in secure cloud storage
+
+Retain last 30 days of daily backups
+
+Test backup restore (monthly) to ensure backups work
+
+Log: "Backup completed. Size: 2.5GB. Backup count: 30 days retained."
+
+***
+
+## **STEP 13: Logging & Alerting Infrastructure**
+
+All jobs log their execution:
+
+Job name, start time, end time, status (success/failure), items processed, errors encountered
+
+Example log:
+
+```
+Job: daily-memory-cleanup
+Started: 2025-11-02 00:00:05 UTC
+Ended: 2025-11-02 00:02:15 UTC
+Status: Success
+Items deleted: 342
+Storage freed: 52MB
+Errors: 0
+```
+
+Alert system:
+
+If job fails, alert user immediately
+
+If job takes abnormally long (e.g., cleanup usually 2 mins but now 20 mins), alert
+
+Create dashboard showing: Last execution time of each job, next scheduled execution, job history
+
+***
+
+## **STEP 14: Job Scheduling Framework**
+
+Use a job scheduling library (like node-schedule or Bull queue)
+
+Define all jobs in configuration file:
+
+```
+Jobs:
+  - name: daily-memory-cleanup
+    schedule: "0 0 * * *"  // midnight UTC daily
+    
+  - name: weekly-summary-generation
+    schedule: "0 0 * * 0"  // Sunday midnight
+    
+  - name: monthly-archive
+    schedule: "0 0 1 * *"  // 1st of month
+    
+  - name: database-maintenance
+    schedule: "0 2 * * 6"  // Saturday 2am
+    
+  - name: health-check
+    schedule: "*/5 * * * *"  // Every 5 minutes
+```
+
+***
+
+## **STEP 15: Monitoring Dashboard for Jobs**
+
+Show user when each job last ran and next scheduled run:
+
+Job Name | Last Run | Status | Next Scheduled | Duration
+
+daily-memory-cleanup | Today 00:02 | ✓ Success | Tomorrow 00:00 | 2m 10s
+
+weekly-summary-generation | Sun 00:15 | ✓ Success | Next Sun 00:00 | 8m 45s
+
+database-maintenance | Sat 02:30 | ✓ Success | Next Sat 02:00 | 15m 20s
+
+health-check | 2 min ago | ✓ Running | Every 5 min | -
+
+***
+
+
+
+PROMPT 11 & 12 COMPLETE
+
+Excellent! ✅ Now here's **PROMPT 13: FINAL - TESTING & SYSTEM VALIDATION (DETAILED):**
+
+***
+
+# **PROMPT 13: TESTING & SYSTEM VALIDATION - FINAL PROMPT**
+
+## **What This Does:**
+
+Build comprehensive testing and validation system to ensure entire AI system works correctly before going live. Covers unit tests, integration tests, end-to-end tests, load testing, and validation checkpoints.
+
+***
+
+## **STEP 1: Unit Tests For Each Module**
+
+### **Test AI Service Manager (Prompt 3):**
+
+Test 1: Query type detection. Pass various questions and verify they're classified correctly.
+
+Test case: "JEE form date?" → Should be classified as "time-sensitive"
+
+Test case: "Mera physics kaisa hai?" → Should be classified as "app-data"
+
+Test case: "What is entropy?" → Should be classified as "general"
+
+Test 2: Model selection. Verify correct model is selected for each query type.
+
+Test case: Time-sensitive → Gemini should be selected
+
+Test case: App-data → Groq Llama should be selected
+
+Test case: General → Groq GPT-OSS should be selected
+
+Test 3: Rate limit checking. Verify system knows when to block calls.
+
+Mock: Groq usage at 95%. Should return "cannot call Groq"
+
+Mock: Gemini usage at 40%. Should return "can call Gemini"
+
+Test 4: Fallback chain execution. Verify fallback works when primary fails.
+
+Mock: Groq fails (timeout). System should try Cerebras. Verify success.
+
+Mock: All providers fail. Should use cache or graceful degradation.
+
+Test 5: Response formatting. Verify responses are standardized.
+
+Response should contain: content, model_used, provider, tokens_used, latency_ms, etc.
+
+***
+
+### **Test Chat Features (Prompts 4 & 5):**
+
+Test 1: Message storage. Verify messages are saved correctly to database.
+
+Send message → Check chat_messages table → Verify content matches
+
+Test 2: Cache operations. Verify caching works.
+
+First request: Should call AI, get response, save to cache
+
+Second identical request within TTL: Should return cached response (faster)
+
+Third request after TTL expires: Should call AI again
+
+Test 3: Memory extraction (Study Assistant Chat).
+
+After conversation, verify insights are extracted and stored in study_chat_memory
+
+Test 4: Hinglish validation.
+
+If response contains only Devanagari: Should be rejected and regenerated
+
+If response is in Roman Hinglish: Should be accepted
+
+***
+
+### **Test Feature Suggestions (Prompt 6):**
+
+Test 1: Each of 22 features works correctly.
+
+Feature 1 (Smart Topic): Pass student data → Get suggested topic → Verify it's weak area
+
+Feature 8 (Dynamic Rescheduling): Modify progress → Verify schedule adjusts
+
+Feature 18 (Daily Tips): Verify tip is relevant to today's topic
+
+Test 2: Batching works.
+
+Call dashboard (which needs 8 features) → Verify only 2-3 API calls made (not 8)
+
+Test 3: Caching works.
+
+Generate Feature 1 twice → Verify second is cached (faster)
+
+***
+
+### **Test Rate Limit Manager (Prompt 11):**
+
+Test 1: Usage tracking.
+
+Simulate 100 API calls to Groq → Verify counter is at 100/500 (20%)
+
+Test 2: Threshold triggering.
+
+Simulate 400 calls to Groq (80%) → Verify yellow warning shown
+
+Simulate 475 calls to Groq (95%) → Verify auto-fallback activated
+
+Test 3: Monthly reset.
+
+Simulate reaching Nov 30th 23:59 UTC with Cohere at 900/1000
+
+Trigger Nov 1st reset → Verify Cohere counter becomes 0/1000
+
+***
+
+### **Test Memory & Cleanup (Prompt 12):**
+
+Test 1: Daily cleanup job.
+
+Create memory records with expires_at = today
+
+Run cleanup job → Verify records deleted
+
+Test 2: Weekly summary generation.
+
+Create 10 memories from past week
+
+Run weekly job → Verify summary created in memory_summaries table
+
+Test 3: Cache cleanup.
+
+Create cache entries with TTL
+
+Wait for TTL to expire
+
+Run cache cleanup → Verify expired entries deleted
+
+***
+
+## **STEP 2: Integration Tests**
+
+These test how different components work together.
+
+### **Test: End-to-End Chat Flow**
+
+1. Student logs in
+2. Navigates to General Chat
+3. Types question: "What is entropy?"
+4. System classifies as general → Routes to Groq
+5. Groq responds
+6. Response displayed in Hinglish
+7. Message stored in database
+8. Response cached
+9. Verify full workflow succeeds
+
+***
+
+### **Test: Memory & Personalization**
+
+1. Student in Study Assistant Chat asks: "Mera physics kaisa?"
+2. System fetches student context (scores, weak areas)
+3. System searches past memories using Cohere embeddings
+4. System generates personalized response
+5. New insight extracted from response
+6. Insight stored with embedding
+7. Verify memory was created and can be found in next search
+
+***
+
+### **Test: File Upload & Analysis**
+
+1. Student uploads PDF from Google Drive
+2. File is downloaded
+3. Gemini analyzes content
+4. Topics extracted
+5. Mapped to curriculum
+6. Suggestions generated
+7. Stored in file_analyses table
+8. Suggestions displayed to student
+9. Verify entire workflow succeeds
+
+***
+
+### **Test: Multi-Provider Fallback**
+
+1. Primary model (Groq) is simulated to fail
+2. System automatically tries Tier 2 (Cerebras)
+3. Cerebras succeeds
+4. Response returned to user
+5. Fallback event logged
+6. User never sees error
+7. Verify seamless failover
+
+***
+
+### **Test: Rate Limit Enforcement**
+
+1. Simulate Groq at 90% usage
+2. New request comes in (would use Groq)
+3. System detects 90% usage
+4. Routes to Cerebras instead
+5. Response succeeds
+6. Fallback is logged
+7. Verify automatic failover triggered correctly
+
+***
+
+## **STEP 3: End-to-End Tests**
+
+### **Test Scenario 1: New Student Journey**
+
+1. New student signs up
+2. Completes onboarding (sets exam target, weak areas)
+3. Student profile created in student_ai_profile
+4. Opens General Chat
+5. Asks "What is JEE?"
+6. Gets response from Groq
+7. Asks follow-up: "How to prepare?"
+8. Gets response
+9. Opens Study Assistant Chat
+10. Asks "Mera weak areas?"
+11. System fetches context, generates personalized response
+12. Memory insight extracted
+13. Next day: Asks same question
+14. System finds relevant past memory
+15. Mentions it in response: "Last week you asked similar question..."
+16. Student feels tracked and personalized
+17. Verify entire personalization flow
+
+***
+
+### **Test Scenario 2: Feature Suggestions**
+
+1. Student opens dashboard
+2. Dashboard loads 22 features
+3. Verify Feature 1 (Topic Suggestion) shows: "Study Thermodynamics"
+4. Verify Feature 3 (Performance Insight) shows: "Physics improved 12%"
+5. Verify Feature 14 (Daily Tip) shows: "Entropy tip..."
+6. Verify all 22 work and display correctly
+7. Count API calls → Should be 2-3 (batched), not 22
+8. Verify total response time < 5 seconds
+
+***
+
+### **Test Scenario 3: Rate Limit During High Load**
+
+1. Simulate 1000 concurrent students asking questions
+2. Each request goes through AI Service Manager
+3. Groq reaches 100% usage
+4. System automatically routes overflowing requests to Cerebras
+5. Queue builds up
+6. As limits reset, queued requests are processed
+7. NO requests are lost
+8. NO errors shown to users
+9. Verify system handles peak load gracefully
+
+***
+
+## **STEP 4: Load Testing**
+
+Use tools like Apache JMeter or Locust to simulate load.
+
+### **Test 1: Concurrent Users**
+
+Simulate 500 concurrent students using the app simultaneously.
+
+Measure:
+
+Response time: Should be < 2 seconds per request
+
+Error rate: Should be < 1%
+
+API call distribution: Should be balanced across providers
+
+Cache hit rate: Should improve over time
+
+***
+
+### **Test 2: Peak Hour Load**
+
+Simulate 2000 API calls per minute.
+
+Measure:
+
+Does system stay responsive?
+
+Do rate limits kick in correctly?
+
+Does fallback work?
+
+Database performance: Is it slow?
+
+***
+
+### **Test 3: Sustained Load**
+
+Run 500 concurrent users for 1 hour.
+
+Measure:
+
+Memory usage: Should be stable
+
+Database disk space: Should not explode
+
+Cache size: Should stay manageable
+
+Any memory leaks?
+
+***
+
+## **STEP 5: Provider Reliability Tests**
+
+### **Test: Groq Reliability**
+
+Make 1000 requests to Groq API
+
+Measure success rate (should be 99.5%+)
+
+Measure average response time (should be < 1 second)
+
+Measure error types (timeout, rate limit, other)
+
+***
+
+### **Test: Gemini Reliability**
+
+Similar to above but for Gemini
+
+Verify web search works
+
+Verify multimodal (image) capabilities work
+
+***
+
+### **Test: Each Provider** (Cerebras, Cohere, Mistral, OpenRouter)
+
+Same reliability tests for each
+
+***
+
+## **STEP 6: Security Tests**
+
+### **Test 1: SQL Injection Prevention**
+
+Try passing SQL injection strings in user input
+
+Verify app handles safely (no database breach)
+
+***
+
+### **Test 2: API Key Security**
+
+Verify API keys are never logged
+
+Verify API keys are not in error messages
+
+Verify API keys are stored encrypted
+
+***
+
+### **Test 3: User Data Privacy**
+
+Verify users can only see their own data
+
+Verify user cannot see encrypted personal data
+
+Verify Hinglish responses don't expose sensitive info
+
+***
+
+### **Test 4: Rate Limit Bypass**
+
+Try to bypass rate limits with rapid requests
+
+Verify system rejects or queues correctly
+
+***
+
+## **STEP 7: Validation Checkpoints**
+
+Before going live, verify these checkpoints:
+
+Checkpoint 1: Database Schema
+
+All 7 tables created correctly? ✓
+
+All columns present? ✓
+
+Indexes created? ✓
+
+***
+
+Checkpoint 2: API Integrations
+
+Groq: Connected and responding? ✓
+
+Gemini: Connected and responding? ✓
+
+Cerebras: Connected and responding? ✓
+
+Cohere: Connected and responding? ✓
+
+Mistral: Connected and responding? ✓
+
+OpenRouter: Connected and responding? ✓
+
+***
+
+Checkpoint 3: AI Service Manager
+
+Query type detection: Working? ✓
+
+Model routing: Working? ✓
+
+Fallback chain: Working? ✓
+
+Rate limiting: Working? ✓
+
+Caching: Working? ✓
+
+***
+
+Checkpoint 4: Chat Systems
+
+General Chat: Working? ✓
+
+Study Assistant Chat: Working? ✓
+
+Memory system: Working? ✓
+
+Hinglish validation: Working? ✓
+
+***
+
+Checkpoint 5: Features
+
+All 22 features: Working? ✓
+
+Batching: Working? ✓
+
+Caching: Working? ✓
+
+Error handling: Working? ✓
+
+***
+
+Checkpoint 6: Settings Panel
+
+All 5 tabs: Accessible? ✓
+
+Settings saved: Persisting? ✓
+
+Changes applied immediately? ✓
+
+***
+
+Checkpoint 7: Dashboard
+
+Real-time updates: Working? ✓
+
+Graphs: Loading correctly? ✓
+
+Alerts: Triggering? ✓
+
+***
+
+Checkpoint 8: Background Jobs
+
+Daily cleanup: Running? ✓
+
+Weekly summaries: Generating? ✓
+
+Health checks: Running every 5 min? ✓
+
+***
+
+Checkpoint 9: Monitoring
+
+Rate limit tracking: Working? ✓
+
+Usage logs: Populating? ✓
+
+Fallback events: Logging? ✓
+
+***
+
+Checkpoint 10: Performance
+
+Average response time: < 1 second? ✓
+
+Cache hit rate: > 40%? ✓
+
+Error rate: < 1%? ✓
+
+Database queries: Optimized? ✓
+
+***
+
+## **STEP 8: Regression Testing**
+
+After each change/deployment, run regression suite:
+
+Re-run all unit tests
+
+Re-run critical integration tests
+
+Verify no new bugs introduced
+
+Verify performance still good
+
+***
+
+## **STEP 9: UAT (User Acceptance Testing)**
+
+Before final release:
+
+Invite 10-20 beta testers (students & teachers)
+
+Have them use the system naturally
+
+Collect feedback: What works? What doesn't?
+
+Fix critical issues
+
+Re-test
+
+***
+
+## **STEP 10: Deployment Validation**
+
+After deploying to production:
+
+Monitor error rates (should stay < 1%)
+
+Monitor response times (should stay < 2 seconds)
+
+Monitor API quota usage (should be steady)
+
+If issues detected: Rollback to previous version
+
+***
+
+## **STEP 11: Post-Launch Monitoring**
+
+First week after launch:
+
+Check every 4 hours: Is system healthy?
+
+If issues: Hotfix and deploy
+
+Monitor user feedback: Any complaints?
+
+Track performance: Is it degrading?
+
+***
+
+**Once all tests pass and system is validated, you're ready to LAUNCH! 🚀**
+
+***
+
+## **Summary of 13 Prompts:**
+
+Prompt 1: API Test ✓
+
+Prompt 2: Database Setup ✓
+
+Prompt 3: AI Service Manager ✓
+
+Prompt 4: General Chat ✓
+
+Prompt 5: Study Assistant + Memory ✓
+
+Prompt 6: 22 AI Features ✓
+
+Prompt 7: Mistral Integration ✓
+
+Prompt 8: Google Drive Analysis ✓
+
+Prompt 9: Settings Panel (5 tabs) ✓
+
+Prompt 10: Usage Dashboard ✓
+
+Prompt 11 & 12: Rate Limit Manager + Cleanup ✓
+
+Prompt 13: Testing & Validation ✓
+
+**All 13 prompts complete! Full AI system ready to build!** 🎉
+
+***
+
+**Reply "ALL COMPLETE" when you're ready, and I can prepare a final summary document or help with next steps!** ✅
+
+PROMPT 11 & 12 COMPLETE
+
+Excellent! ✅ Now here's **PROMPT 13: FINAL - TESTING & SYSTEM VALIDATION (DETAILED):**
+
+***
+
+# **PROMPT 13: TESTING & SYSTEM VALIDATION - FINAL PROMPT**
+
+## **What This Does:**
+
+Build comprehensive testing and validation system to ensure entire AI system works correctly before going live. Covers unit tests, integration tests, end-to-end tests, load testing, and validation checkpoints.
+
+***
+
+## **STEP 1: Unit Tests For Each Module**
+
+### **Test AI Service Manager (Prompt 3):**
+
+Test 1: Query type detection. Pass various questions and verify they're classified correctly.
+
+Test case: "JEE form date?" → Should be classified as "time-sensitive"
+
+Test case: "Mera physics kaisa hai?" → Should be classified as "app-data"
+
+Test case: "What is entropy?" → Should be classified as "general"
+
+Test 2: Model selection. Verify correct model is selected for each query type.
+
+Test case: Time-sensitive → Gemini should be selected
+
+Test case: App-data → Groq Llama should be selected
+
+Test case: General → Groq GPT-OSS should be selected
+
+Test 3: Rate limit checking. Verify system knows when to block calls.
+
+Mock: Groq usage at 95%. Should return "cannot call Groq"
+
+Mock: Gemini usage at 40%. Should return "can call Gemini"
+
+Test 4: Fallback chain execution. Verify fallback works when primary fails.
+
+Mock: Groq fails (timeout). System should try Cerebras. Verify success.
+
+Mock: All providers fail. Should use cache or graceful degradation.
+
+Test 5: Response formatting. Verify responses are standardized.
+
+Response should contain: content, model_used, provider, tokens_used, latency_ms, etc.
+
+***
+
+### **Test Chat Features (Prompts 4 & 5):**
+
+Test 1: Message storage. Verify messages are saved correctly to database.
+
+Send message → Check chat_messages table → Verify content matches
+
+Test 2: Cache operations. Verify caching works.
+
+First request: Should call AI, get response, save to cache
+
+Second identical request within TTL: Should return cached response (faster)
+
+Third request after TTL expires: Should call AI again
+
+Test 3: Memory extraction (Study Assistant Chat).
+
+After conversation, verify insights are extracted and stored in study_chat_memory
+
+Test 4: Hinglish validation.
+
+If response contains only Devanagari: Should be rejected and regenerated
+
+If response is in Roman Hinglish: Should be accepted
+
+***
+
+### **Test Feature Suggestions (Prompt 6):**
+
+Test 1: Each of 22 features works correctly.
+
+Feature 1 (Smart Topic): Pass student data → Get suggested topic → Verify it's weak area
+
+Feature 8 (Dynamic Rescheduling): Modify progress → Verify schedule adjusts
+
+Feature 18 (Daily Tips): Verify tip is relevant to today's topic
+
+Test 2: Batching works.
+
+Call dashboard (which needs 8 features) → Verify only 2-3 API calls made (not 8)
+
+Test 3: Caching works.
+
+Generate Feature 1 twice → Verify second is cached (faster)
+
+***
+
+### **Test Rate Limit Manager (Prompt 11):**
+
+Test 1: Usage tracking.
+
+Simulate 100 API calls to Groq → Verify counter is at 100/500 (20%)
+
+Test 2: Threshold triggering.
+
+Simulate 400 calls to Groq (80%) → Verify yellow warning shown
+
+Simulate 475 calls to Groq (95%) → Verify auto-fallback activated
+
+Test 3: Monthly reset.
+
+Simulate reaching Nov 30th 23:59 UTC with Cohere at 900/1000
+
+Trigger Nov 1st reset → Verify Cohere counter becomes 0/1000
+
+***
+
+### **Test Memory & Cleanup (Prompt 12):**
+
+Test 1: Daily cleanup job.
+
+Create memory records with expires_at = today
+
+Run cleanup job → Verify records deleted
+
+Test 2: Weekly summary generation.
+
+Create 10 memories from past week
+
+Run weekly job → Verify summary created in memory_summaries table
+
+Test 3: Cache cleanup.
+
+Create cache entries with TTL
+
+Wait for TTL to expire
+
+Run cache cleanup → Verify expired entries deleted
+
+***
+
+## **STEP 2: Integration Tests**
+
+These test how different components work together.
+
+### **Test: End-to-End Chat Flow**
+
+1. Student logs in
+2. Navigates to General Chat
+3. Types question: "What is entropy?"
+4. System classifies as general → Routes to Groq
+5. Groq responds
+6. Response displayed in Hinglish
+7. Message stored in database
+8. Response cached
+9. Verify full workflow succeeds
+
+***
+
+### **Test: Memory & Personalization**
+
+1. Student in Study Assistant Chat asks: "Mera physics kaisa?"
+2. System fetches student context (scores, weak areas)
+3. System searches past memories using Cohere embeddings
+4. System generates personalized response
+5. New insight extracted from response
+6. Insight stored with embedding
+7. Verify memory was created and can be found in next search
+
+***
+
+### **Test: File Upload & Analysis**
+
+1. Student uploads PDF from Google Drive
+2. File is downloaded
+3. Gemini analyzes content
+4. Topics extracted
+5. Mapped to curriculum
+6. Suggestions generated
+7. Stored in file_analyses table
+8. Suggestions displayed to student
+9. Verify entire workflow succeeds
+
+***
+
+### **Test: Multi-Provider Fallback**
+
+1. Primary model (Groq) is simulated to fail
+2. System automatically tries Tier 2 (Cerebras)
+3. Cerebras succeeds
+4. Response returned to user
+5. Fallback event logged
+6. User never sees error
+7. Verify seamless failover
+
+***
+
+### **Test: Rate Limit Enforcement**
+
+1. Simulate Groq at 90% usage
+2. New request comes in (would use Groq)
+3. System detects 90% usage
+4. Routes to Cerebras instead
+5. Response succeeds
+6. Fallback is logged
+7. Verify automatic failover triggered correctly
+
+***
+
+## **STEP 3: End-to-End Tests**
+
+### **Test Scenario 1: New Student Journey**
+
+1. New student signs up
+2. Completes onboarding (sets exam target, weak areas)
+3. Student profile created in student_ai_profile
+4. Opens General Chat
+5. Asks "What is JEE?"
+6. Gets response from Groq
+7. Asks follow-up: "How to prepare?"
+8. Gets response
+9. Opens Study Assistant Chat
+10. Asks "Mera weak areas?"
+11. System fetches context, generates personalized response
+12. Memory insight extracted
+13. Next day: Asks same question
+14. System finds relevant past memory
+15. Mentions it in response: "Last week you asked similar question..."
+16. Student feels tracked and personalized
+17. Verify entire personalization flow
+
+***
+
+### **Test Scenario 2: Feature Suggestions**
+
+1. Student opens dashboard
+2. Dashboard loads 22 features
+3. Verify Feature 1 (Topic Suggestion) shows: "Study Thermodynamics"
+4. Verify Feature 3 (Performance Insight) shows: "Physics improved 12%"
+5. Verify Feature 14 (Daily Tip) shows: "Entropy tip..."
+6. Verify all 22 work and display correctly
+7. Count API calls → Should be 2-3 (batched), not 22
+8. Verify total response time < 5 seconds
+
+***
+
+### **Test Scenario 3: Rate Limit During High Load**
+
+1. Simulate 1000 concurrent students asking questions
+2. Each request goes through AI Service Manager
+3. Groq reaches 100% usage
+4. System automatically routes overflowing requests to Cerebras
+5. Queue builds up
+6. As limits reset, queued requests are processed
+7. NO requests are lost
+8. NO errors shown to users
+9. Verify system handles peak load gracefully
+
+***
+
+## **STEP 4: Load Testing**
+
+Use tools like Apache JMeter or Locust to simulate load.
+
+### **Test 1: Concurrent Users**
+
+Simulate 500 concurrent students using the app simultaneously.
+
+Measure:
+
+Response time: Should be < 2 seconds per request
+
+Error rate: Should be < 1%
+
+API call distribution: Should be balanced across providers
+
+Cache hit rate: Should improve over time
+
+***
+
+### **Test 2: Peak Hour Load**
+
+Simulate 2000 API calls per minute.
+
+Measure:
+
+Does system stay responsive?
+
+Do rate limits kick in correctly?
+
+Does fallback work?
+
+Database performance: Is it slow?
+
+***
+
+### **Test 3: Sustained Load**
+
+Run 500 concurrent users for 1 hour.
+
+Measure:
+
+Memory usage: Should be stable
+
+Database disk space: Should not explode
+
+Cache size: Should stay manageable
+
+Any memory leaks?
+
+***
+
+## **STEP 5: Provider Reliability Tests**
+
+### **Test: Groq Reliability**
+
+Make 1000 requests to Groq API
+
+Measure success rate (should be 99.5%+)
+
+Measure average response time (should be < 1 second)
+
+Measure error types (timeout, rate limit, other)
+
+***
+
+### **Test: Gemini Reliability**
+
+Similar to above but for Gemini
+
+Verify web search works
+
+Verify multimodal (image) capabilities work
+
+***
+
+### **Test: Each Provider** (Cerebras, Cohere, Mistral, OpenRouter)
+
+Same reliability tests for each
+
+***
+
+## **STEP 6: Security Tests**
+
+### **Test 1: SQL Injection Prevention**
+
+Try passing SQL injection strings in user input
+
+Verify app handles safely (no database breach)
+
+***
+
+### **Test 2: API Key Security**
+
+Verify API keys are never logged
+
+Verify API keys are not in error messages
+
+Verify API keys are stored encrypted
+
+***
+
+### **Test 3: User Data Privacy**
+
+Verify users can only see their own data
+
+Verify user cannot see encrypted personal data
+
+Verify Hinglish responses don't expose sensitive info
+
+***
+
+### **Test 4: Rate Limit Bypass**
+
+Try to bypass rate limits with rapid requests
+
+Verify system rejects or queues correctly
+
+***
+
+## **STEP 7: Validation Checkpoints**
+
+Before going live, verify these checkpoints:
+
+Checkpoint 1: Database Schema
+
+All 7 tables created correctly? ✓
+
+All columns present? ✓
+
+Indexes created? ✓
+
+***
+
+Checkpoint 2: API Integrations
+
+Groq: Connected and responding? ✓
+
+Gemini: Connected and responding? ✓
+
+Cerebras: Connected and responding? ✓
+
+Cohere: Connected and responding? ✓
+
+Mistral: Connected and responding? ✓
+
+OpenRouter: Connected and responding? ✓
+
+***
+
+Checkpoint 3: AI Service Manager
+
+Query type detection: Working? ✓
+
+Model routing: Working? ✓
+
+Fallback chain: Working? ✓
+
+Rate limiting: Working? ✓
+
+Caching: Working? ✓
+
+***
+
+Checkpoint 4: Chat Systems
+
+General Chat: Working? ✓
+
+Study Assistant Chat: Working? ✓
+
+Memory system: Working? ✓
+
+Hinglish validation: Working? ✓
+
+***
+
+Checkpoint 5: Features
+
+All 22 features: Working? ✓
+
+Batching: Working? ✓
+
+Caching: Working? ✓
+
+Error handling: Working? ✓
+
+***
+
+Checkpoint 6: Settings Panel
+
+All 5 tabs: Accessible? ✓
+
+Settings saved: Persisting? ✓
+
+Changes applied immediately? ✓
+
+***
+
+Checkpoint 7: Dashboard
+
+Real-time updates: Working? ✓
+
+Graphs: Loading correctly? ✓
+
+Alerts: Triggering? ✓
+
+***
+
+Checkpoint 8: Background Jobs
+
+Daily cleanup: Running? ✓
+
+Weekly summaries: Generating? ✓
+
+Health checks: Running every 5 min? ✓
+
+***
+
+Checkpoint 9: Monitoring
+
+Rate limit tracking: Working? ✓
+
+Usage logs: Populating? ✓
+
+Fallback events: Logging? ✓
+
+***
+
+Checkpoint 10: Performance
+
+Average response time: < 1 second? ✓
+
+Cache hit rate: > 40%? ✓
+
+Error rate: < 1%? ✓
+
+Database queries: Optimized? ✓
+
+***
+
+## **STEP 8: Regression Testing**
+
+After each change/deployment, run regression suite:
+
+Re-run all unit tests
+
+Re-run critical integration tests
+
+Verify no new bugs introduced
+
+Verify performance still good
+
+***
+
+## **STEP 9: UAT (User Acceptance Testing)**
+
+Before final release:
+
+Invite 10-20 beta testers (students & teachers)
+
+Have them use the system naturally
+
+Collect feedback: What works? What doesn't?
+
+Fix critical issues
+
+Re-test
+
+***
+
+## **STEP 10: Deployment Validation**
+
+After deploying to production:
+
+Monitor error rates (should stay < 1%)
+
+Monitor response times (should stay < 2 seconds)
+
+Monitor API quota usage (should be steady)
+
+If issues detected: Rollback to previous version
+
+***
+
+## **STEP 11: Post-Launch Monitoring**
+
+First week after launch:
+
+Check every 4 hours: Is system healthy?
+
+If issues: Hotfix and deploy
+
+Monitor user feedback: Any complaints?
+
+Track performance: Is it degrading?
+
+***
+
+**Once all tests pass and system is validated, you're ready to LAUNCH! 🚀**
+
+***
+
+## **Summary of 13 Prompts:**
+
+Prompt 1: API Test ✓
+
+Prompt 2: Database Setup ✓
+
+Prompt 3: AI Service Manager ✓
+
+Prompt 4: General Chat ✓
+
+Prompt 5: Study Assistant + Memory ✓
+
+Prompt 6: 22 AI Features ✓
+
+Prompt 7: Mistral Integration ✓
+
+Prompt 8: Google Drive Analysis ✓
+
+Prompt 9: Settings Panel (5 tabs) ✓
+
+Prompt 10: Usage Dashboard ✓
+
+Prompt 11 & 12: Rate Limit Manager + Cleanup ✓
+
+Prompt 13: Testing & Validation ✓
+
+**All 13 prompts complete! Full AI system ready to build!** 🎉
+
+***
+
+**Reply "ALL COMPLETE" when you're ready, and I can prepare a final summary document or help with next steps!** ✅

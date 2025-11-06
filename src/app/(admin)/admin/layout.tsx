@@ -1,9 +1,9 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/hooks/use-auth-listener';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -12,36 +12,21 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const { data: session, status } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'loading') return; // Still loading
-
-    if (!session) {
+    // Check if user is authenticated
+    if (!user) {
       router.push('/auth');
       return;
     }
 
-    // Allow all authenticated users as admins
-    if (!session.user?.email) {
-      router.push('/auth');
-      return;
-    }
-  }, [session, status, router]);
+    // All authenticated users are admins
+    // No additional email checks needed as all authenticated users are admins
+  }, [user, router]);
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="h-8 w-8 animate-pulse mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">Loading admin panel...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -63,8 +48,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // All authenticated users are admins
-  const userEmail = session.user?.email;
-  const isAdmin = !!userEmail;
+  const isAdmin = !!user;
 
   return (
     <div className="min-h-screen bg-background">

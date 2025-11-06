@@ -1,0 +1,42 @@
+nohup: ignoring input
+
+> nextn@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.6 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://10.88.0.3:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2000ms
+ ○ Compiling /api/admin/embeddings/settings ...
+ GET /api/admin/embeddings/settings 200 in 2819ms
+ ✓ Compiled /api/admin/embeddings/settings in 6.5s
+ GET / 200 in 5754ms
+ GET /api/admin/embeddings/settings 200 in 455ms
+ ✓ Compiled /api/admin/embeddings/usage in 258ms
+ GET /api/admin/embeddings/usage 200 in 767ms
+ ○ Compiling /admin/embeddings ...
+ ✓ Compiled /admin/embeddings in 805ms
+ GET /admin/embeddings 200 in 972ms
+ POST /api/admin/embeddings/settings 200 in 275ms
+ POST /api/admin/embeddings/settings 200 in 277ms
+ GET /api/admin/embeddings/settings 200 in 395ms
+ GET /admin/embeddings 200 in 157ms
+ GET / 200 in 199ms
+ GET /api/admin/embeddings/settings 200 in 374ms
+ GET /api/admin/embeddings/settings 200 in 379ms
+ ✓ Compiled in 183ms
+ ✓ Compiled /admin/embeddings in 38ms
+ GET /admin/embeddings 200 in 510ms
+ GET /admin/embeddings 200 in 155ms
+ ✓ Compiled in 196ms
+ ✓ Compiled /admin/embeddings in 31ms
+ GET /admin/embeddings 200 in 493ms
+ ✓ Compiled in 298ms
+ ✓ Compiled /admin/embeddings in 34ms
+ GET /admin/embeddings 200 in 505ms
+ GET /admin/embeddings 200 in 157ms
+ GET /api/admin/embeddings/settings 200 in 380ms
+ GET / 200 in 185ms

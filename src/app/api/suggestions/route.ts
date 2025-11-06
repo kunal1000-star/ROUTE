@@ -1,7 +1,6 @@
 // AI Suggestions API Endpoints
 // Handle generation, retrieval, and management of AI study suggestions
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
 import { createClient } from '@supabase/supabase-js';
 import { 
   generateAllSuggestions, 
@@ -16,13 +15,33 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+async function authenticateUser(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { authorized: false, message: 'Authorization header missing' };
+  }
+
+  const token = authHeader.substring(7);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return { authorized: false, message: 'Invalid or expired token' };
+  }
+  
+  return { authorized: true, user };
+}
+
 // GET /api/suggestions - Get AI suggestions for current user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await authenticateUser(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.message }, { status: 401 });
+    }
+
+    const userId = auth.user?.id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -31,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Check cache first (unless refresh is requested)
     if (!refresh) {
-      const cached = getCachedSuggestions(session.user.id);
+      const cached = getCachedSuggestions(userId);
       if (cached) {
         // Filter by type if specified
         const filteredSuggestions = type 
@@ -51,7 +70,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('ai_suggestions')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .gt('expires_at', new Date().toISOString());
 
@@ -107,12 +126,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
+  const auth = await authenticateUser(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.message }, { status: 401 });
+  }
+
+  const userId = auth.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: 'User ID not found' }, { status: 401 });
+  }
+  
   try {
-    const session = await getServerSession();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { forceRefresh = false } = await request.json().catch(() => ({ forceRefresh: false }));
 
@@ -121,7 +145,7 @@ export async function POST(request: NextRequest) {
       const { data: recentSuggestions } = await supabase
         .from('ai_suggestions')
         .select('id')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .eq('is_active', true)
         .gt('created_at', new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()) // 6 hours
         .limit(1);
@@ -139,37 +163,17 @@ export async function POST(request: NextRequest) {
     let { data: profile, error: profileError } = await supabase
       .from('student_profiles')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .single();
 
     if (profileError || !profile) {
       // Create a basic profile if it doesn't exist
-      const defaultProfile: StudentProfile = {
-        userId: session.user.id,
-        performanceData: {
-          subjectScores: {},
-          weakAreas: [],
-          strongAreas: [],
-          recentActivities: [],
-          studyTime: 120, // 2 hours default
-          learningStyle: 'visual',
-          examTarget: 'JEE 2025',
-          currentProgress: {}
-        },
-        historicalData: {
-          improvementTrends: {},
-          struggleTopics: [],
-          successPatterns: [],
-          timeSpentBySubject: {}
-        }
-      };
-
       const { data: newProfile, error: createError } = await supabase
         .from('student_profiles')
         .insert({
-          user_id: session.user.id,
-          performance_data: defaultProfile.performanceData,
-          historical_data: defaultProfile.historicalData
+          user_id: userId,
+          performance_data: {},
+          historical_data: {}
         })
         .select()
         .single();
@@ -187,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     // Build student profile for AI analysis
     const studentProfile: StudentProfile = {
-      userId: session.user.id,
+      userId: userId,
       performanceData: profile.performance_data || {},
       historicalData: profile.historical_data || {}
     };
@@ -200,7 +204,7 @@ export async function POST(request: NextRequest) {
     // Store suggestions in database
     if (suggestions.length > 0) {
       const suggestionsToInsert = suggestions.map((suggestion: Suggestion) => ({
-        user_id: session.user.id,
+        user_id: userId,
         suggestion_type: suggestion.type,
         title: suggestion.title,
         description: suggestion.description,
@@ -228,13 +232,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Cache suggestions
-    cacheSuggestions(session.user.id, suggestions);
+    cacheSuggestions(userId, suggestions);
 
     // Log generation
     await supabase
       .from('suggestion_generation_logs')
       .insert({
-        user_id: session.user.id,
+        user_id: userId,
         generation_type: 'all',
         input_data: studentProfile,
         output_count: suggestions.length,
@@ -254,20 +258,17 @@ export async function POST(request: NextRequest) {
     
     // Log failed generation
     try {
-      const session = await getServerSession();
-      if (session?.user?.id) {
-        await supabase
-          .from('suggestion_generation_logs')
-          .insert({
-            user_id: session.user.id,
-            generation_type: 'all',
-            input_data: {},
-            output_count: 0,
-            generation_time_ms: Date.now() - startTime,
-            success: false,
-            error_message: error.message
-          });
-      }
+      await supabase
+        .from('suggestion_generation_logs')
+        .insert({
+          user_id: userId,
+          generation_type: 'all',
+          input_data: {},
+          output_count: 0,
+          generation_time_ms: Date.now() - startTime,
+          success: false,
+          error_message: error.message
+        });
     } catch (logError) {
       console.error('Error logging failed generation:', logError);
     }
@@ -282,10 +283,14 @@ export async function POST(request: NextRequest) {
 // PATCH /api/suggestions/:id - Update suggestion (e.g., mark as applied)
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await authenticateUser(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.message }, { status: 401 });
+    }
+
+    const userId = auth.user?.id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -320,7 +325,7 @@ export async function PATCH(request: NextRequest) {
           await supabase
             .from('suggestion_interactions')
             .insert({
-              user_id: session.user.id,
+              user_id: userId,
               suggestion_id: suggestionId,
               interaction_type: 'feedback',
               feedback_rating: feedbackRating,
@@ -337,7 +342,7 @@ export async function PATCH(request: NextRequest) {
       .from('ai_suggestions')
       .update(updateData)
       .eq('id', suggestionId)
-      .eq('user_id', session.user.id);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('Error updating suggestion:', error);
@@ -352,7 +357,7 @@ export async function PATCH(request: NextRequest) {
       await supabase
         .from('suggestion_interactions')
         .insert({
-          user_id: session.user.id,
+          user_id: userId,
           suggestion_id: suggestionId,
           interaction_type: interactionType
         });

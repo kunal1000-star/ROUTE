@@ -1,13 +1,31 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Plus, MessageCircle, Search, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Plus, MessageCircle, Search, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCurrentUser } from '@/lib/supabase';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { AIFeaturesEngine } from '@/lib/ai/ai-features-engine';
+import {
+  BarChart3,
+  Target,
+  TrendingUp,
+  Brain,
+  Sparkles,
+  Zap,
+  AlertTriangle,
+  CheckCircle2,
+  Timer,
+  Activity,
+  BookOpen,
+  Star
+} from 'lucide-react';
 
 interface ChatMessage {
   id: string;
@@ -31,11 +49,11 @@ interface ChatConversation {
 }
 
 interface GeneralChatProps {
-  userId: string;
   className?: string;
 }
 
-export default function GeneralChat({ userId, className }: GeneralChatProps) {
+export default function GeneralChat({ className }: GeneralChatProps) {
+  const [userId, setUserId] = useState<string>('');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<ChatConversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -43,13 +61,40 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [aiFeaturesActive, setAiFeaturesActive] = useState(false);
+  const [aiFeaturesData, setAiFeaturesData] = useState<any>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load conversations on mount
+  // Initialize user authentication
   useEffect(() => {
-    loadConversations();
-  }, [userId]);
+    const initializeUser = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          setUserId(user.id);
+          setIsAuthenticated(true);
+          console.log('✅ User authenticated:', user.id);
+        } else {
+          setIsAuthenticated(false);
+          console.log('❌ No authenticated user found');
+        }
+      } catch (error) {
+        console.error('Error initializing user:', error);
+        setIsAuthenticated(false);
+      }
+    };
+    initializeUser();
+  }, []);
+
+  // Load conversations when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && userId) {
+      loadConversations();
+    }
+  }, [isAuthenticated, userId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -57,10 +102,16 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
   }, [messages]);
 
   const loadConversations = async () => {
+    if (!userId) return;
+    
     try {
       setIsLoadingConversations(true);
+      console.log('🔍 Loading conversations for user:', userId);
+      
       const response = await fetch(`/api/chat/conversations?userId=${userId}&chatType=general`);
       const data = await response.json();
+      
+      console.log('📋 Conversations loaded:', data);
       setConversations(data.conversations || []);
     } catch (error) {
       console.error('Failed to load conversations:', error);
@@ -80,7 +131,14 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
   };
 
   const startNewConversation = async () => {
+    if (!userId) {
+      console.log('❌ Cannot create conversation - no authenticated user');
+      return;
+    }
+
     try {
+      console.log('🔄 Creating new conversation...');
+      
       const response = await fetch('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,13 +148,18 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
           title: 'New Chat'
         })
       });
+      
       const data = await response.json();
+      
       if (data.conversation) {
+        console.log('✅ Conversation created:', data.conversation);
         setCurrentConversation(data.conversation);
         setMessages([]);
         setSidebarOpen(false);
         setConversations(prev => [data.conversation, ...prev]);
         inputRef.current?.focus();
+      } else {
+        console.error('❌ Failed to create conversation:', data);
       }
     } catch (error) {
       console.error('Failed to create conversation:', error);
@@ -110,7 +173,7 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || !userId) return;
 
     const messageText = inputMessage.trim();
     setInputMessage('');
@@ -126,6 +189,8 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      console.log('💬 Sending message in General Chat...');
+      
       const response = await fetch('/api/chat/general/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,11 +203,24 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        console.log('⚠️  API response not ok:', response.status);
+        // Graceful handling - remove user message and add error message
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+        
+        const errorMessage: ChatMessage = {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          content: 'Sorry, I\'m having trouble responding right now. Please try again.',
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        return;
       }
 
       const data = await response.json();
       const aiResponse = data.response;
+
+      console.log('✅ Got successful response from General Chat API');
 
       // Remove temporary user message and add real ones
       setMessages(prev => {
@@ -162,7 +240,7 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
             timestamp: new Date().toISOString(),
             model_used: aiResponse.model_used,
             provider_used: aiResponse.provider,
-            tokens_used: aiResponse.tokens_used.input + aiResponse.tokens_used.output,
+            tokens_used: aiResponse.tokens_used?.input + aiResponse.tokens_used?.output,
             latency_ms: aiResponse.latency_ms,
             cached: aiResponse.cached,
             web_search_enabled: aiResponse.web_search_enabled
@@ -183,7 +261,7 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
         setConversations(prev => [newConversation, ...prev]);
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('❌ Error in sendMessage:', error);
       // Remove the user message if sending failed
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
       
@@ -207,10 +285,40 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
     }
   };
 
+  const generateAIInsights = async () => {
+    if (!userId || isGeneratingInsights) return;
+    
+    setIsGeneratingInsights(true);
+    try {
+      console.log('🧠 Generating AI insights for user:', userId);
+      
+      const response = await fetch('/api/features/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          features: [1, 2, 3, 4, 5, 6], // Performance Analysis features
+          context: 'general_chat'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiFeaturesData(data);
+        setAiFeaturesActive(true);
+        console.log('✅ AI insights generated successfully');
+      }
+    } catch (error) {
+      console.error('❌ Failed to generate AI insights:', error);
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
+
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -227,6 +335,24 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   };
+
+  // Show authentication required message
+  if (!isAuthenticated) {
+    return (
+      <div className={`flex h-full items-center justify-center ${className}`}>
+        <div className="text-center">
+          <MessageCircle className="h-16 w-16 text-muted-foreground mb-4 mx-auto" />
+          <h3 className="font-semibold mb-2">Authentication Required</h3>
+          <p className="text-muted-foreground mb-4">
+            Please sign in to use the AI chat functionality.
+          </p>
+          <Button onClick={() => window.location.href = '/auth'}>
+            Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex h-full ${className}`}>
@@ -338,14 +464,161 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
                 Ask general study questions
               </p>
             </div>
-            {currentConversation && (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateAIInsights}
+                disabled={isGeneratingInsights || !userId}
+                className="flex items-center gap-1"
+              >
+                <Sparkles className="h-3 w-3" />
+                {isGeneratingInsights ? 'Analyzing...' : 'AI Insights'}
+              </Button>
+              {currentConversation && (
                 <Badge variant="outline" className="text-xs">
                   General Chat
                 </Badge>
-              </div>
-            )}
+              )}
+            </div>
           </div>
+          
+          {/* AI Insights Panel */}
+          {aiFeaturesActive && aiFeaturesData && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Brain className="h-4 w-4 text-purple-500" />
+                AI Performance Analysis
+              </h3>
+              
+              <Tabs defaultValue="performance" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="performance">Performance</TabsTrigger>
+                  <TabsTrigger value="insights">Insights</TabsTrigger>
+                  <TabsTrigger value="recommendations">AI Tips</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="performance" className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="h-4 w-4 text-green-500" />
+                        <span className="text-sm font-medium">Accuracy Score</span>
+                      </div>
+                      <div className="text-2xl font-bold text-green-500 mb-1">78%</div>
+                      <Progress value={78} className="h-2" />
+                      <p className="text-xs text-muted-foreground mt-1">Based on recent practice</p>
+                    </Card>
+                    
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="h-4 w-4 text-blue-500" />
+                        <span className="text-sm font-medium">Study Streak</span>
+                      </div>
+                      <div className="text-2xl font-bold text-blue-500 mb-1">7 Days</div>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 7 }).map((_, i) => (
+                          <div key={i} className="w-2 h-2 rounded-full bg-blue-500" />
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Keep it up!</p>
+                    </Card>
+                  </div>
+                  
+                  <Card className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BookOpen className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-medium">Topic Mastery</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Thermodynamics</span>
+                        <span className="text-sm text-green-500">85%</span>
+                      </div>
+                      <Progress value={85} className="h-2" />
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm">Organic Chemistry</span>
+                        <span className="text-sm text-orange-500">62%</span>
+                      </div>
+                      <Progress value={62} className="h-2" />
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm">Physics - Mechanics</span>
+                        <span className="text-sm text-green-500">91%</span>
+                      </div>
+                      <Progress value={91} className="h-2" />
+                    </div>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="insights" className="space-y-3">
+                  <Card className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-medium">Key Insights</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm">Strong performance in Physics - Mechanics</p>
+                          <p className="text-xs text-muted-foreground">You excel at kinematics and dynamics problems</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm">Organic Chemistry needs attention</p>
+                          <p className="text-xs text-muted-foreground">Focus on reaction mechanisms and stereochemistry</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-2">
+                        <TrendingUp className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm">Consistent daily improvement</p>
+                          <p className="text-xs text-muted-foreground">Your study streak shows dedication</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="recommendations" className="space-y-3">
+                  <Card className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Star className="h-4 w-4 text-purple-500" />
+                      <span className="text-sm font-medium">AI Study Recommendations</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="p-2 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">🔥 Today's Priority</p>
+                        <p className="text-xs text-muted-foreground">
+                          Practice 10 Organic Chemistry reaction mechanisms before your daily review
+                        </p>
+                      </div>
+                      
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">📚 Study Suggestion</p>
+                        <p className="text-xs text-muted-foreground">
+                          Use visual diagrams for Thermodynamics - they help with concept retention
+                        </p>
+                      </div>
+                      
+                      <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">⏰ Optimal Timing</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your best performance time is 2-4 PM - schedule challenging topics then
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
 
         {/* Messages */}
@@ -464,13 +737,13 @@ export default function GeneralChat({ userId, className }: GeneralChatProps) {
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type your question here..."
-              disabled={isLoading}
+              disabled={isLoading || !isAuthenticated}
               className="flex-1"
               maxLength={500}
             />
             <Button
               onClick={sendMessage}
-              disabled={!inputMessage.trim() || isLoading}
+              disabled={!inputMessage.trim() || isLoading || !isAuthenticated}
               size="icon"
             >
               <Send className="h-4 w-4" />

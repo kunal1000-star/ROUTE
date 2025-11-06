@@ -2,8 +2,13 @@
 // ====================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { aiServiceManager } from '@/lib/ai/ai-service-manager-fixed';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,43 +58,15 @@ export async function POST(request: NextRequest) {
       });
 
     if (userMessageError) {
-      throw new Error(`Failed to store user message: ${userMessageError.message}`);
+      console.error('User message error:', userMessageError);
+      // Don't fail the entire request if message storage fails
     }
 
-    // Fetch student context if this is a personal query
-    let studentContext = null;
-    if (isPersonalQuery) {
-      try {
-        // This would integrate with the actual student context builder
-        studentContext = {
-          userId,
-          profileText: "JEE 2025 aspirant. Physics: 78%, Chemistry: 82%, Maths: 75%.",
-          strongSubjects: ['Organic Chemistry', 'Kinematics'],
-          weakSubjects: ['Thermodynamics', 'Modern Physics'],
-          examTarget: 'JEE 2025',
-          studyProgress: {
-            totalTopics: 50,
-            completedTopics: 35,
-            accuracy: 78
-          },
-          currentData: {
-            streak: 7,
-            level: 3,
-            points: 1250,
-            revisionQueue: 5
-          },
-          learningStyle: 'visual'
-        };
-      } catch (contextError) {
-        console.warn('Failed to fetch student context:', contextError);
-      }
-    }
-
-    // Call AI Service Manager with study assistant context
+    // Call AI Service Manager
     const aiResponse = await aiServiceManager.processQuery({
       userId,
-      conversationId: finalConversationId,
       message,
+      conversationId: finalConversationId,
       chatType: 'study_assistant',
       includeAppData: isPersonalQuery
     });
@@ -103,13 +80,14 @@ export async function POST(request: NextRequest) {
         content: aiResponse.content,
         model_used: aiResponse.model_used,
         provider_used: aiResponse.provider,
-        tokens_used: aiResponse.tokens_used.input + aiResponse.tokens_used.output,
+        tokens_used: aiResponse.tokens_used?.input + aiResponse.tokens_used?.output || 0,
         latency_ms: aiResponse.latency_ms,
         context_included: isPersonalQuery
       });
 
     if (aiMessageError) {
-      throw new Error(`Failed to store AI message: ${aiMessageError.message}`);
+      console.error('AI message error:', aiMessageError);
+      // Don't fail the entire request if AI response storage fails
     }
 
     // Update conversation timestamp
@@ -118,42 +96,59 @@ export async function POST(request: NextRequest) {
       .update({ updated_at: new Date().toISOString() })
       .eq('id', finalConversationId);
 
-    // Extract and store memories for personal queries
-    let memoryReferences = [];
-    if (isPersonalQuery && aiResponse.content) {
-      try {
-        // This would integrate with the actual memory extraction system
-        memoryReferences = [
-          {
-            id: 'memory-1',
-            content: 'Student struggled with entropy concept in previous session',
-            similarity: 0.85,
-            created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            importance_score: 4,
-            tags: ['weakness', 'thermodynamics']
-          }
-        ];
-        
-        // Store the memory (in real implementation, this would be done by memory-extractor.ts)
-        if (memoryReferences.length > 0) {
-          // Would store in study_chat_memory table
-        }
-      } catch (memoryError) {
-        console.warn('Failed to extract/store memories:', memoryError);
-      }
-    }
-
     return NextResponse.json({
-      response: aiResponse,
+      success: true,
+      data: {
+        response: {
+          content: aiResponse.content,
+          model_used: aiResponse.model_used,
+          provider_used: aiResponse.provider,
+          tokens_used: aiResponse.tokens_used || { input: 0, output: 0 },
+          latency_ms: aiResponse.latency_ms,
+          query_type: aiResponse.query_type || 'general',
+          web_search_enabled: aiResponse.web_search_enabled || false,
+          fallback_used: aiResponse.fallback_used || false,
+          cached: aiResponse.cached || false,
+          isTimeSensitive: false,
+          language: 'hinglish',
+          memory_references: []
+        }
+      },
       conversationId: finalConversationId,
-      memoryReferences: isPersonalQuery ? memoryReferences : [],
-      studentContext: isPersonalQuery ? studentContext : null
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error('Study assistant send error:', error);
+    
+    // Handle different error types with consistent formatting
+    if (error instanceof Error && error.message.includes('rate limit')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Rate limit reached. Please wait before sending another message.',
+          retryAfter: 60
+        },
+        { status: 429 }
+      );
+    }
+
+    if (error instanceof Error && error.message.includes('service unavailable')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'AI service is temporarily unavailable. Please try again later.',
+          retryAfter: 30
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
       { status: 500 }
     );
   }

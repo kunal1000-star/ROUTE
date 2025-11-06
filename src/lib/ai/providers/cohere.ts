@@ -71,8 +71,8 @@ export async function testCohereAPI(request: TestRequest): Promise<TestResponse>
 
     const data = await response.json();
     
-    // Validate response structure
-    if (!data.embeddings || !data.embeddings[0] || !Array.isArray(data.embeddings[0].vector)) {
+    // FIXED: Validate response structure - Cohere returns embeddings[0] directly, not embeddings[0].vector
+    if (!data.embeddings || !data.embeddings[0]) {
       return {
         provider: 'cohere',
         success: false,
@@ -81,15 +81,16 @@ export async function testCohereAPI(request: TestRequest): Promise<TestResponse>
         error: {
           type: 'validation',
           message: 'Invalid response structure from API',
-          details: 'Expected embeddings[0].vector array in response',
+          details: 'Expected embeddings[0] array in response',
         },
       };
     }
 
-    const embedding = data.embeddings[0].vector;
+    // FIXED: Use embeddings[0] directly as it's already the array
+    const embedding = data.embeddings[0];
     
     // Validate embedding dimensions (should be 1536 for embed-english-v3.0)
-    if (embedding.length !== 1536) {
+    if (!Array.isArray(embedding) || embedding.length !== 1536) {
       return {
         provider: 'cohere',
         success: false,
@@ -97,7 +98,7 @@ export async function testCohereAPI(request: TestRequest): Promise<TestResponse>
         status: response.status,
         error: {
           type: 'validation',
-          message: `Unexpected embedding dimensions: ${embedding.length}`,
+          message: `Unexpected embedding dimensions: ${Array.isArray(embedding) ? embedding.length : 'not an array'}`,
           details: 'Expected 1536 dimensions for embed-english-v3.0 model',
         },
       };

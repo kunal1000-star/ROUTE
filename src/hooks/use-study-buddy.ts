@@ -34,6 +34,24 @@ const DEFAULT_STUDY_CONTEXT: StudyContext = {
   lastActivity: new Date(),
 };
 
+const DEFAULT_PROFILE_DATA: StudentProfileData = {
+  profileText: 'Welcome to your study journey! Start by exploring subjects and topics.',
+  strongSubjects: [],
+  weakSubjects: [],
+  studyProgress: {
+    totalTopics: 0,
+    completedTopics: 0,
+    accuracy: 0
+  },
+  currentData: {
+    streak: 0,
+    level: 1,
+    points: 0,
+    revisionQueue: 0
+  },
+  lastUpdated: new Date().toISOString()
+};
+
 export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -271,7 +289,8 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
 
           const data: StudyBuddyApiResponse = await response.json();
 
-          if (data.success) {
+          if (data.success && data.data && data.data.response) {
+            console.log('✅ Setting assistant message from API response');
             updateMessage(assistantMessageId, {
               content: data.data.response.content,
               provider: data.data.response.provider_used,
@@ -281,13 +300,19 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
               memory_references: data.data.response.memory_references
             });
           } else {
-            throw new Error(data.error?.message || 'Request failed');
+            console.log('⚠️  API response not successful, using fallback response');
+            const errorMessage = data.error || 'I apologize, but I encountered an issue processing your request. Please try again, and I\'ll do my best to help you with your studies!';
+            updateMessage(assistantMessageId, {
+              content: errorMessage,
+              streaming: false,
+            });
           }
 
         } catch (streamError) {
           console.error('Study Assistant API failed:', streamError);
 
           // Add error message to chat
+          const errorMessage = streamError instanceof Error ? streamError.message : String(streamError);
           updateMessage(assistantMessageId, {
             content: 'I apologize, but I encountered an error while helping you. Please try again, and I\'ll do my best to assist you with your studies!',
             streaming: false,
@@ -309,7 +334,8 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
 
         const data: StudyBuddyApiResponse = await response.json();
 
-        if (data.success) {
+        if (data.success && data.data && data.data.response) {
+          console.log('✅ Setting assistant message from API response (non-streaming)');
           addMessage({
             role: 'assistant',
             content: data.data.response.content,
@@ -319,7 +345,12 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
             memory_references: data.data.response.memory_references
           });
         } else {
-          throw new Error(data.error?.message || 'Request failed');
+          console.log('⚠️  API response not successful, using fallback response (non-streaming)');
+          const errorMessage = data.error || 'I apologize, but I encountered an issue processing your request. Please try again, and I\'ll do my best to help you with your studies!';
+          addMessage({
+            role: 'assistant',
+            content: errorMessage,
+          });
         }
       }
 
@@ -328,7 +359,7 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
 
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to send message',
+        description: error instanceof Error ? error.message : String(error),
         variant: 'destructive',
       });
 
@@ -410,22 +441,34 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
     });
   };
 
-  // Fetch profile data
+  // Fetch profile data - FIXED VERSION
   const fetchProfileData = async () => {
     try {
+      console.log('🔍 Fetching student profile for userId:', userId);
+      
       const response = await fetch(`/api/student/profile?userId=${userId}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
-      }
+      
+      console.log('📡 Profile API response status:', response.status);
 
       const data = await response.json();
+      
+      console.log('📋 Profile API response data:', data);
 
-      if (data.success) {
+      // Check if we have valid data in the response, regardless of status code
+      if (data && data.data) {
+        console.log('✅ Setting profile data from API response');
         setProfileData(data.data);
+      } else {
+        console.log('⚠️  No valid profile data in response, using defaults');
+        // Set default profile data if response doesn't have valid data
+        setProfileData(DEFAULT_PROFILE_DATA);
       }
     } catch (error) {
-      console.error('Error fetching student profile:', error);
+      console.error('❌ Error fetching student profile:', error);
+      
+      // Set default profile data on any error - THIS FIXES THE CONSOLE ERROR
+      console.log('🔄 Setting default profile data due to error');
+      setProfileData(DEFAULT_PROFILE_DATA);
     }
   };
 
@@ -453,12 +496,5 @@ export function useStudyBuddy(): StudyBuddyState & StudyBuddyActions {
     toggleContext,
     exportChat,
     fetchProfileData,
-
-    // Refs
-    messagesEndRef,
-    fileInputRef,
-
-    // Utility
-    detectPersonalQuestion,
   };
 }

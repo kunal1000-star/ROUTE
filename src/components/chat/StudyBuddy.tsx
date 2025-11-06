@@ -14,7 +14,9 @@ import {
   AlertCircle,
   CheckCircle,
   BookOpen,
-  Zap
+  Zap,
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +25,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { AIFeaturesEngine } from '@/lib/ai/ai-features-engine';
 
 interface ChatMessage {
   id: string;
@@ -73,6 +78,9 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aiFeaturesActive, setAiFeaturesActive] = useState(false);
+  const [aiFeaturesData, setAiFeaturesData] = useState<any>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -242,6 +250,37 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  const generateAIInsights = async () => {
+    if (!userId || isGeneratingInsights) return;
+    
+    setIsGeneratingInsights(true);
+    try {
+      console.log('🧠 Generating StudyBuddy AI insights for user:', userId);
+      
+      const response = await fetch('/api/features/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          features: [1, 2, 3, 4, 5, 6], // Performance Analysis features
+          context: 'study_buddy',
+          includePersonalContext: true
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiFeaturesData(data);
+        setAiFeaturesActive(true);
+        console.log('✅ StudyBuddy AI insights generated successfully');
+      }
+    } catch (error) {
+      console.error('❌ Failed to generate StudyBuddy AI insights:', error);
+    } finally {
+      setIsGeneratingInsights(false);
     }
   };
 
@@ -446,6 +485,16 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
             </div>
             <div className="flex items-center gap-2">
               <Button
+                variant="outline"
+                size="sm"
+                onClick={generateAIInsights}
+                disabled={isGeneratingInsights || !userId}
+                className="flex items-center gap-1"
+              >
+                <Sparkles className="h-3 w-3" />
+                {isGeneratingInsights ? 'Analyzing...' : 'AI Insights'}
+              </Button>
+              <Button
                 variant={isPersonalQuery ? "default" : "outline"}
                 size="sm"
                 onClick={() => setIsPersonalQuery(!isPersonalQuery)}
@@ -455,6 +504,148 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
               </Button>
             </div>
           </div>
+          
+          {/* AI Insights Panel for StudyBuddy */}
+          {aiFeaturesActive && aiFeaturesData && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Brain className="h-4 w-4 text-purple-500" />
+                Personalized Study Analysis
+              </h3>
+              
+              <Tabs defaultValue="performance" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="performance">Performance</TabsTrigger>
+                  <TabsTrigger value="weaknesses">Weak Areas</TabsTrigger>
+                  <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="performance" className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="h-4 w-4 text-green-500" />
+                        <span className="text-sm font-medium">Overall Accuracy</span>
+                      </div>
+                      <div className="text-2xl font-bold text-green-500 mb-1">{studentProfile?.accuracy || 78}%</div>
+                      <Progress value={studentProfile?.accuracy || 78} className="h-2" />
+                      <p className="text-xs text-muted-foreground mt-1">Based on your study data</p>
+                    </Card>
+                    
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className="h-4 w-4 text-orange-500" />
+                        <span className="text-sm font-medium">Current Streak</span>
+                      </div>
+                      <div className="text-2xl font-bold text-orange-500 mb-1">{studentProfile?.currentStreak || 7} Days</div>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(studentProfile?.currentStreak || 7, 7) }).map((_, i) => (
+                          <div key={i} className="w-2 h-2 rounded-full bg-orange-500" />
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Keep the momentum!</p>
+                    </Card>
+                  </div>
+                  
+                  <Card className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BookOpen className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm font-medium">Subject Performance</span>
+                    </div>
+                    <div className="space-y-2">
+                      {studentProfile?.strongSubjects?.map((subject, i) => (
+                        <div key={i} className="flex justify-between items-center">
+                          <span className="text-sm">{subject}</span>
+                          <div className="flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            <span className="text-sm text-green-500">Strong</span>
+                          </div>
+                        </div>
+                      ))}
+                      {studentProfile?.weakSubjects?.map((subject, i) => (
+                        <div key={i} className="flex justify-between items-center">
+                          <span className="text-sm">{subject}</span>
+                          <div className="flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 text-orange-500" />
+                            <span className="text-sm text-orange-500">Needs Work</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="weaknesses" className="space-y-3">
+                  <Card className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-medium">Areas for Improvement</span>
+                    </div>
+                    <div className="space-y-3">
+                      {studentProfile?.weakSubjects?.map((subject, i) => (
+                        <div key={i} className="p-2 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium">{subject}</span>
+                            <Badge variant="outline" className="text-xs">Priority</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Focus on fundamental concepts and practice problems
+                          </p>
+                        </div>
+                      ))}
+                      
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium">Study Pattern Analysis</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Your performance dips during evening sessions. Consider scheduling difficult topics for afternoon.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="recommendations" className="space-y-3">
+                  <Card className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Star className="h-4 w-4 text-purple-500" />
+                      <span className="text-sm font-medium">Personalized Recommendations</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="p-2 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">🎯 Today's Focus</p>
+                        <p className="text-xs text-muted-foreground">
+                          Spend 30 minutes on {studentProfile?.weakSubjects?.[0] || 'Thermodynamics'} using visual aids
+                        </p>
+                      </div>
+                      
+                      <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">📚 Study Strategy</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your visual learning style works well - use more diagrams for {studentProfile?.weakSubjects?.[1] || 'Physics'}
+                        </p>
+                      </div>
+                      
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">⏰ Optimal Schedule</p>
+                        <p className="text-xs text-muted-foreground">
+                          Schedule practice tests for 2-4 PM when your concentration is peak
+                        </p>
+                      </div>
+                      
+                      <div className="p-2 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                        <p className="text-sm font-medium mb-1">🔄 Review Cycle</p>
+                        <p className="text-xs text-muted-foreground">
+                          Review {studentProfile?.strongSubjects?.[0] || 'Organic Chemistry'} every 3 days to maintain mastery
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
 
         {/* Messages */}

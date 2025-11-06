@@ -1,9 +1,10 @@
 // Semantic Search Service for Study Memories
 // =========================================
 
-import { cohereClient } from './providers/cohere-client';
+import { unifiedEmbeddingService, generateEmbeddings } from './unified-embedding-service';
 import { MemoryQueries } from '@/lib/database/queries';
 import type { StudyChatMemoryWithSimilarity } from '@/types/database-ai';
+import type { AIProvider } from '@/types/api-test';
 
 export interface SemanticSearchOptions {
   userId: string;
@@ -13,6 +14,7 @@ export interface SemanticSearchOptions {
   tags?: string[];
   importanceScore?: number;
   contextLevel?: 'light' | 'balanced' | 'comprehensive';
+  preferredProvider?: AIProvider;
 }
 
 export interface SemanticSearchResult {
@@ -23,39 +25,30 @@ export interface SemanticSearchResult {
     averageSimilarity: number;
     searchTimeMs: number;
     embeddingGenerated: boolean;
-    cohereUsage: {
-      embeddingTokens: number;
-      monthlyUsage: number;
-      monthlyLimit: number;
+    provider: AIProvider;
+    model: string;
+    dimensions: number;
+    usage: {
+      requestCount: number;
+      totalTokens: number;
+      cost: number;
     };
   };
 }
 
-export interface CohereUsageTracker {
-  monthlyEmbeddingTokens: number;
-  monthlyRequestCount: number;
-  lastResetDate: string;
-  isNearLimit: boolean;
-  isAtLimit: boolean;
+export interface EmbeddingUsageStats {
+  total: { requests: number; cost: number };
+  byProvider: Record<AIProvider, { requests: number; cost: number; healthy: boolean }>;
 }
 
-const COHERE_MONTHLY_LIMIT = 1000; // Requests per month
-const COHERE_TOKEN_PER_EMBEDDING = 100; // Estimated tokens per embedding request
 const EMBEDDING_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Semantic Search Service for Study Memories
- * Uses Cohere embeddings to find relevant study memories
+ * Uses multi-provider embeddings with automatic fallback
  */
 export class SemanticSearchService {
-  private embeddingCache: Map<string, { embedding: number[]; timestamp: number }> = new Map();
-  private usageTracker: CohereUsageTracker = {
-    monthlyEmbeddingTokens: 0,
-    monthlyRequestCount: 0,
-    lastResetDate: new Date().toISOString().split('T')[0],
-    isNearLimit: false,
-    isAtLimit: false
-  };
+  private embeddingCache: Map<string, { embedding: number[]; timestamp: number; provider: AIProvider; model: string }> = new Map();
 
   /**
    * Main semantic search function
@@ -69,17 +62,15 @@ export class SemanticSearchService {
       minSimilarity = 0.7,
       tags,
       importanceScore,
-      contextLevel = 'balanced'
+      contextLevel = 'balanced',
+      preferredProvider
     } = options;
 
     try {
       // Step 1: Generate or get cached embedding for the query
-      const queryEmbedding = await this.getQueryEmbedding(query);
+      const { embedding: queryEmbedding, provider, model, dimensions } = await this.getQueryEmbedding(query, preferredProvider);
       
-      // Step 2: Update usage tracking
-      this.updateUsageTracking(queryEmbedding);
-      
-      // Step 3: Perform vector similarity search in database
+      // Step 2: Perform vector similarity search in database
       const searchOptions = {
         user_id: userId,
         embedding: queryEmbedding,
@@ -91,15 +82,16 @@ export class SemanticSearchService {
 
       const memories = await MemoryQueries.findSimilarMemories(userId, queryEmbedding, searchOptions);
       
-      // Step 4: Filter and sort results based on context level
+      // Step 3: Filter and sort results based on context level
       const filteredMemories = this.filterMemoriesByContext(memories, contextLevel);
       
-      // Step 5: Calculate search statistics
+      // Step 4: Calculate search statistics
       const searchStats = this.calculateSearchStats(
         filteredMemories,
         startTime,
-        queryEmbedding,
-        contextLevel
+        provider,
+        model,
+        dimensions
       );
 
       return {
@@ -115,52 +107,66 @@ export class SemanticSearchService {
   }
 
   /**
-   * Generate embedding for a query using Cohere
+   * Generate embedding for a query using unified embedding service
    */
-  private async getQueryEmbedding(query: string): Promise<number[]> {
+  private async getQueryEmbedding(query: string, preferredProvider?: AIProvider): Promise<{
+    embedding: number[];
+    provider: AIProvider;
+    model: string;
+    dimensions: number;
+  }> {
     // Check cache first
-    const cacheKey = this.getEmbeddingCacheKey(query);
+    const cacheKey = this.getEmbeddingCacheKey(query, preferredProvider);
     const cached = this.embeddingCache.get(cacheKey);
     
     if (cached && Date.now() - cached.timestamp < EMBEDDING_CACHE_TTL) {
-      return cached.embedding;
-    }
-
-    // Check rate limits before making request
-    if (this.isAtCohereLimit()) {
-      throw new Error('Cohere monthly limit reached. Please try again next month.');
+      return {
+        embedding: cached.embedding,
+        provider: cached.provider,
+        model: cached.model,
+        dimensions: cached.embedding.length
+      };
     }
 
     try {
-      // Generate embedding using Cohere
-      const embeddings = await cohereClient.generateEmbeddings({
+      // Use unified embedding service with fallback
+      const result = await unifiedEmbeddingService.generateEmbeddings({
         texts: [query],
-        inputType: 'search_query',
-        model: 'embed-english-v3.0'
+        provider: preferredProvider,
+        timeout: 30000
       });
 
-      if (!embeddings || embeddings.length === 0) {
-        throw new Error('No embedding returned from Cohere');
-      }
-
-      const embedding = embeddings[0];
-      
       // Cache the embedding
       this.embeddingCache.set(cacheKey, {
-        embedding,
-        timestamp: Date.now()
+        embedding: result.embeddings[0],
+        timestamp: Date.now(),
+        provider: result.provider,
+        model: result.model
       });
 
       // Clean up old cache entries to prevent memory leaks
       this.cleanupEmbeddingCache();
 
-      return embedding;
+      return {
+        embedding: result.embeddings[0],
+        provider: result.provider,
+        model: result.model,
+        dimensions: result.dimensions
+      };
 
     } catch (error) {
       console.error('Failed to generate embedding:', error);
       
-      // Return a random embedding as fallback (not ideal but prevents complete failure)
-      return this.generateFallbackEmbedding();
+      // Return a fallback embedding with appropriate dimensions
+      const fallbackDimensions = 1536; // Standard dimension
+      const fallbackEmbedding = this.generateFallbackEmbedding(fallbackDimensions);
+      
+      return {
+        embedding: fallbackEmbedding,
+        provider: preferredProvider || 'cohere',
+        model: 'fallback',
+        dimensions: fallbackDimensions
+      };
     }
   }
 
@@ -209,8 +215,9 @@ export class SemanticSearchService {
   private calculateSearchStats(
     memories: StudyChatMemoryWithSimilarity[],
     startTime: number,
-    queryEmbedding: number[],
-    contextLevel: string
+    provider: AIProvider,
+    model: string,
+    dimensions: number
   ): SemanticSearchResult['searchStats'] {
     const searchTimeMs = Date.now() - startTime;
     const similarities = memories.map(m => m.similarity || 0);
@@ -218,57 +225,35 @@ export class SemanticSearchService {
       ? similarities.reduce((sum, sim) => sum + sim, 0) / similarities.length 
       : 0;
 
+    // Get usage statistics from unified service
+    const usageStats = unifiedEmbeddingService.getUsageStatistics();
+    const providerStats = usageStats.byProvider[provider] || { requests: 0, cost: 0, healthy: true };
+
     return {
       totalFound: memories.length,
       averageSimilarity,
       searchTimeMs,
       embeddingGenerated: true,
-      cohereUsage: {
-        embeddingTokens: COHERE_TOKEN_PER_EMBEDDING,
-        monthlyUsage: this.usageTracker.monthlyRequestCount,
-        monthlyLimit: COHERE_MONTHLY_LIMIT
+      provider,
+      model,
+      dimensions,
+      usage: {
+        requestCount: 1,
+        totalTokens: 0, // Would need to track this separately
+        cost: providerStats.cost
       }
     };
   }
 
   /**
-   * Update usage tracking for Cohere
-   */
-  private updateUsageTracking(embedding: number[]): void {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Reset monthly counter if it's a new month
-    if (today !== this.usageTracker.lastResetDate) {
-      this.usageTracker.monthlyEmbeddingTokens = 0;
-      this.usageTracker.monthlyRequestCount = 0;
-      this.usageTracker.lastResetDate = today;
-    }
-
-    // Update usage
-    this.usageTracker.monthlyEmbeddingTokens += COHERE_TOKEN_PER_EMBEDDING;
-    this.usageTracker.monthlyRequestCount += 1;
-
-    // Update limit status
-    const usagePercentage = this.usageTracker.monthlyRequestCount / COHERE_MONTHLY_LIMIT;
-    this.usageTracker.isNearLimit = usagePercentage >= 0.8;
-    this.usageTracker.isAtLimit = usagePercentage >= 1.0;
-  }
-
-  /**
-   * Check if we're at Cohere monthly limit
-   */
-  private isAtCohereLimit(): boolean {
-    return this.usageTracker.isAtLimit;
-  }
-
-  /**
    * Get cache key for embedding
    */
-  private getEmbeddingCacheKey(text: string): string {
-    // Simple hash function for cache key
+  private getEmbeddingCacheKey(text: string, provider?: AIProvider): string {
+    // Enhanced hash function that includes provider
     let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      const char = text.charCodeAt(i);
+    const str = `${provider || 'default'}:${text}`;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
@@ -276,12 +261,11 @@ export class SemanticSearchService {
   }
 
   /**
-   * Generate fallback embedding when Cohere fails
+   * Generate fallback embedding with specified dimensions
    */
-  private generateFallbackEmbedding(): number[] {
-    // Return a random 1536-dimensional vector
-    // This is not ideal but prevents complete system failure
-    return Array.from({ length: 1536 }, () => Math.random() - 0.5);
+  private generateFallbackEmbedding(dimensions: number): number[] {
+    // Return a random vector with specified dimensions
+    return Array.from({ length: dimensions }, () => Math.random() - 0.5);
   }
 
   /**
@@ -310,36 +294,39 @@ export class SemanticSearchService {
   }
 
   /**
-   * Batch generate embeddings for multiple texts
+   * Batch generate embeddings for multiple texts using unified service
    */
-  async batchGenerateEmbeddings(texts: string[]): Promise<number[][]> {
-    // Check if we can handle the batch
-    const remainingRequests = COHERE_MONTHLY_LIMIT - this.usageTracker.monthlyRequestCount;
-    if (texts.length > remainingRequests) {
-      throw new Error(`Cannot process batch: would exceed monthly limit (${texts.length} > ${remainingRequests} remaining)`);
-    }
-
+  async batchGenerateEmbeddings(texts: string[], preferredProvider?: AIProvider): Promise<{
+    embeddings: number[][];
+    provider: AIProvider;
+    model: string;
+    dimensions: number;
+  }> {
     try {
-      const embeddings = await cohereClient.generateEmbeddings({
+      // Use unified embedding service
+      const result = await unifiedEmbeddingService.generateEmbeddings({
         texts,
-        inputType: 'search_document',
-        model: 'embed-english-v3.0'
+        provider: preferredProvider,
+        timeout: 30000
       });
 
       // Cache each embedding
       texts.forEach((text, index) => {
-        const cacheKey = this.getEmbeddingCacheKey(text);
+        const cacheKey = this.getEmbeddingCacheKey(text, result.provider);
         this.embeddingCache.set(cacheKey, {
-          embedding: embeddings[index],
-          timestamp: Date.now()
+          embedding: result.embeddings[index],
+          timestamp: Date.now(),
+          provider: result.provider,
+          model: result.model
         });
       });
 
-      // Update usage tracking
-      this.usageTracker.monthlyRequestCount += texts.length;
-      this.usageTracker.monthlyEmbeddingTokens += texts.length * COHERE_TOKEN_PER_EMBEDDING;
-
-      return embeddings;
+      return {
+        embeddings: result.embeddings,
+        provider: result.provider,
+        model: result.model,
+        dimensions: result.dimensions
+      };
 
     } catch (error) {
       console.error('Batch embedding generation failed:', error);
@@ -348,17 +335,17 @@ export class SemanticSearchService {
   }
 
   /**
-   * Get usage statistics
+   * Get embedding service statistics
    */
-  getUsageStatistics(): CohereUsageTracker {
-    return { ...this.usageTracker };
+  getEmbeddingUsageStatistics(): EmbeddingUsageStats {
+    return unifiedEmbeddingService.getUsageStatistics();
   }
 
   /**
    * Check if embeddings are available for a text
    */
-  hasCachedEmbedding(text: string): boolean {
-    const cacheKey = this.getEmbeddingCacheKey(text);
+  hasCachedEmbedding(text: string, provider?: AIProvider): boolean {
+    const cacheKey = this.getEmbeddingCacheKey(text, provider);
     const cached = this.embeddingCache.get(cacheKey);
     
     if (!cached) return false;
@@ -375,25 +362,32 @@ export class SemanticSearchService {
     validEntries: number;
     cacheHitRate: number;
     memoryUsage: string;
+    providerBreakdown: Record<AIProvider, number>;
   } {
     const now = Date.now();
     let validEntries = 0;
-    
-    for (const { timestamp } of this.embeddingCache.values()) {
+    const providerBreakdown: Record<AIProvider, number> = {} as any;
+
+    for (const { timestamp, provider } of this.embeddingCache.values()) {
       if (now - timestamp < EMBEDDING_CACHE_TTL) {
         validEntries++;
+      }
+      
+      if (provider) {
+        providerBreakdown[provider] = (providerBreakdown[provider] || 0) + 1;
       }
     }
 
     // Estimate memory usage (rough calculation)
-    const avgEmbeddingSize = 1536 * 8; // 1536 floats * 8 bytes per float
+    const avgEmbeddingSize = 1536 * 8; // 1536 floats * 8 bytes per float (average)
     const totalMemoryUsage = this.embeddingCache.size * avgEmbeddingSize;
     
     return {
       totalEntries: this.embeddingCache.size,
       validEntries,
       cacheHitRate: validEntries / this.embeddingCache.size,
-      memoryUsage: `${(totalMemoryUsage / 1024 / 1024).toFixed(2)} MB`
+      memoryUsage: `${(totalMemoryUsage / 1024 / 1024).toFixed(2)} MB`,
+      providerBreakdown
     };
   }
 
@@ -405,9 +399,9 @@ export class SemanticSearchService {
   }
 
   /**
-   * Preload embeddings for common study topics
+   * Preload embeddings for common study topics using unified service
    */
-  async preloadCommonTopicEmbeddings(): Promise<void> {
+  async preloadCommonTopicEmbeddings(preferredProvider?: AIProvider): Promise<void> {
     const commonTopics = [
       'thermodynamics',
       'organic chemistry',
@@ -422,10 +416,34 @@ export class SemanticSearchService {
     ];
 
     try {
-      const embeddings = await this.batchGenerateEmbeddings(commonTopics);
-      console.log(`Preloaded ${embeddings.length} common topic embeddings`);
+      const result = await this.batchGenerateEmbeddings(commonTopics, preferredProvider);
+      console.log(`Preloaded ${result.embeddings.length} common topic embeddings using ${result.provider}`);
     } catch (error) {
       console.warn('Failed to preload common topic embeddings:', error);
+    }
+  }
+
+  /**
+   * Get health status of all embedding providers
+   */
+  async getProviderHealthStatus(): Promise<Record<AIProvider, { healthy: boolean; responseTime: number; error?: string }>> {
+    try {
+      const healthResults = await unifiedEmbeddingService.performHealthCheck();
+      
+      const status: Record<AIProvider, { healthy: boolean; responseTime: number; error?: string }> = {} as any;
+      
+      for (const [provider, health] of Object.entries(healthResults)) {
+        status[provider as AIProvider] = {
+          healthy: health.healthy,
+          responseTime: health.responseTime,
+          error: health.error
+        };
+      }
+      
+      return status;
+    } catch (error) {
+      console.error('Failed to get provider health status:', error);
+      return {} as any;
     }
   }
 }
@@ -437,12 +455,14 @@ export const semanticSearch = new SemanticSearchService();
 export const searchStudyMemories = (options: SemanticSearchOptions) => 
   semanticSearch.searchMemories(options);
 
-export const generateQueryEmbedding = (query: string) => 
-  semanticSearch['getQueryEmbedding'](query);
+export const generateQueryEmbedding = (query: string, provider?: AIProvider) => 
+  semanticSearch['getQueryEmbedding'](query, provider);
 
 export const getSemanticSearchStats = () => 
-  semanticSearch.getUsageStatistics();
+  semanticSearch.getEmbeddingUsageStatistics();
+
+export const getEmbeddingProviderHealth = () => 
+  semanticSearch.getProviderHealthStatus();
 
 // Export for testing
-export const CohereMonthlyLimit = COHERE_MONTHLY_LIMIT;
 export const EmbeddingCacheTTL = EMBEDDING_CACHE_TTL;

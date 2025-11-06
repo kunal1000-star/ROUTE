@@ -82,7 +82,7 @@ export class AIServiceManagerTests {
       { message: 'When is my exam date?', expected: 'time_sensitive' },
       { message: 'Mera performance kaise chal raha?', expected: 'app_data' },
       { message: 'Explain photosynthesis', expected: 'general' },
-      { { message: 'Latest update on admission form', expected: 'time_sensitive' } },
+      { message: 'Latest update on admission form', expected: 'time_sensitive' },
       { message: 'My study progress report', expected: 'app_data' },
       { message: 'What is quantum physics?', expected: 'general' },
       { message: 'Kab tak form submit karna hai?', expected: 'time_sensitive' },
@@ -444,6 +444,3 @@ export async function runAITests(): Promise<void> {
     console.log(`\n🎉 All tests passed! AI Service Manager is ready for production.`);
   }
 }
-
-// Export for direct testing
-export { AIServiceManagerTests };

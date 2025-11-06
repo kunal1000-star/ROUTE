@@ -1,0 +1,34 @@
+-- Database Migration: Enhancement 2C - AI Predictions (Features 13-17)
+-- Add prediction-specific fields to ai_suggestions table
+
+-- Add prediction-related fields to ai_suggestions table
+ALTER TABLE ai_suggestions 
+ADD COLUMN IF NOT EXISTS predicted_value TEXT,
+ADD COLUMN IF NOT EXISTS confidence_level DECIMAL(3,2),
+ADD COLUMN IF NOT EXISTS time_horizon TEXT,
+ADD COLUMN IF NOT EXISTS confidence_interval JSONB,
+ADD COLUMN IF NOT EXISTS prediction_factors TEXT[],
+ADD COLUMN IF NOT EXISTS prediction_insights TEXT[],
+ADD COLUMN IF NOT EXISTS accuracy_tracking JSONB,
+ADD COLUMN IF NOT EXISTS prediction_type TEXT,
+ADD COLUMN IF NOT EXISTS prediction_data JSONB,
+ADD COLUMN IF NOT EXISTS schedule_impact TEXT,
+ADD COLUMN IF NOT EXISTS schedule_data JSONB;
+
+-- Create index for better performance on prediction queries
+CREATE INDEX IF NOT EXISTS idx_ai_suggestions_prediction_type ON ai_suggestions(prediction_type);
+CREATE INDEX IF NOT EXISTS idx_ai_suggestions_feature_id ON ai_suggestions(feature_id);
+CREATE INDEX IF NOT EXISTS idx_ai_suggestions_confidence_level ON ai_suggestions(confidence_level);
+
+-- Add comments for documentation
+COMMENT ON COLUMN ai_suggestions.predicted_value IS 'The predicted value (e.g., "3 weeks", "85%", "hard difficulty")';
+COMMENT ON COLUMN ai_suggestions.confidence_level IS 'Confidence level of the prediction (0.00-1.00)';
+COMMENT ON COLUMN ai_suggestions.time_horizon IS 'Time frame for the prediction (e.g., "2 weeks", "4 weeks")';
+COMMENT ON COLUMN ai_suggestions.confidence_interval IS 'Confidence interval bounds for numerical predictions';
+COMMENT ON COLUMN ai_suggestions.prediction_factors IS 'Array of factors that influenced this prediction';
+COMMENT ON COLUMN ai_suggestions.prediction_insights IS 'Array of actionable insights based on the prediction';
+COMMENT ON COLUMN ai_suggestions.accuracy_tracking IS 'Tracking data for prediction accuracy validation';
+COMMENT ON COLUMN ai_suggestions.prediction_type IS 'Type of prediction: mastery, difficulty, time, performance, learning_path';
+COMMENT ON COLUMN ai_suggestions.prediction_data IS 'Additional prediction-specific data in JSON format';
+COMMENT ON COLUMN ai_suggestions.schedule_impact IS 'Impact timeframe: immediate, weekly, monthly';
+COMMENT ON COLUMN ai_suggestions.schedule_data IS 'Schedule-specific data for scheduling-related predictions';

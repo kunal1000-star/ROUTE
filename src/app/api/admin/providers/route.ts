@@ -1,21 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { createClient } from '@supabase/supabase-js';
 import { aiServiceManager } from '@/lib/ai/ai-service-manager';
 import { rateLimitTracker } from '@/lib/ai/rate-limit-tracker';
 import { responseCache } from '@/lib/ai/response-cache';
 import type { AIProvider } from '@/types/api-test';
 import type { ProviderConfig } from '@/types/ai-service-manager';
 
-// Helper function to check admin access
-async function checkAdminAccess(request: NextRequest): Promise<{authorized: boolean; message?: string}> {
-  const session = await getServerSession();
-  
-  if (!session || !session.user) {
-    return { authorized: false, message: 'Not authenticated' };
-  }
+// Create Supabase client for server-side operations
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  // All authenticated users are admins
-  return { authorized: true };
+// Helper function to check admin access using Supabase
+async function checkAdminAccess(request: NextRequest): Promise<{authorized: boolean; message?: string}> {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return { authorized: false, message: 'No authorization header' };
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return { authorized: false, message: 'Invalid or expired token' };
+    }
+
+    // All authenticated users are admins
+    return { authorized: true };
+  } catch (error) {
+    console.error('Auth check error:', error);
+    return { authorized: false, message: 'Authentication check failed' };
+  }
 }
 
 // GET /api/admin/providers - Fetch all provider configurations
@@ -87,7 +104,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { provid
 
 // Helper functions
 function getProviderTier(provider: AIProvider): number {
-  const tierMap = {
+  const tierMap: Record<AIProvider, number> = {
     groq: 1,
     cerebras: 2,
     mistral: 3,
@@ -99,7 +116,7 @@ function getProviderTier(provider: AIProvider): number {
 }
 
 function getProviderBaseUrl(provider: AIProvider): string {
-  const baseUrlMap = {
+  const baseUrlMap: Record<AIProvider, string> = {
     groq: 'https://api.groq.com/openai/v1',
     gemini: 'https://generativelanguage.googleapis.com/v1',
     cerebras: 'https://api.cerebras.ai/v1',
@@ -111,7 +128,7 @@ function getProviderBaseUrl(provider: AIProvider): string {
 }
 
 function getProviderModels(provider: AIProvider) {
-  const modelMap = {
+  const modelMap: Record<AIProvider, { chat: string }> = {
     groq: { chat: 'llama-3.3-70b-versatile' },
     gemini: { chat: 'gemini-1.5-flash' },
     cerebras: { chat: 'llama-3.3-70b' },
@@ -132,7 +149,7 @@ function getProviderCapabilities(provider: AIProvider) {
 }
 
 function getMaxTokensForProvider(provider: AIProvider): number {
-  const maxTokensMap = {
+  const maxTokensMap: Record<AIProvider, number> = {
     groq: 32768,
     gemini: 1000000,
     cerebras: 128000,

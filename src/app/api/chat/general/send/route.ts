@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager';
+import { aiServiceManager } from '@/lib/ai/ai-service-manager-fixed';
 import { z } from 'zod';
 import crypto from 'crypto';
 
