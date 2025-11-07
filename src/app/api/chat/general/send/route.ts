@@ -3,12 +3,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
 
 // Graceful AI service manager initialization
 async function getAiServiceManagerSafely() {
   try {
     // Try to import ai-service-manager
-    const { aiServiceManager } = await import('@/lib/ai/ai-service-manager');
+    const { aiServiceManager } = await import('@/lib/ai/ai-service-manager-unified');
     return { service: aiServiceManager, error: null, initialized: true };
   } catch (importError) {
     console.warn('AI service manager not available:', importError instanceof Error ? importError.message : String(importError));
@@ -43,7 +44,10 @@ function createMockAiResponse(message: string, chatType: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, conversationId, message, chatType } = await request.json();
+    console.log('Incoming request headers:', request.headers);
+    const requestBody = await request.json();
+    console.log('Parsed request body:', requestBody);
+    const { userId, conversationId, message, chatType } = requestBody;
 
     if (!userId || !message || !chatType) {
       return NextResponse.json(
@@ -51,6 +55,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Additional logging for debugging
+    console.log('UserId:', userId);
+    console.log('ConversationId:', conversationId);
+    console.log('Message:', message);
+    console.log('ChatType:', chatType);
 
     // If no conversationId provided, create new conversation
     let finalConversationId = conversationId;
@@ -112,17 +122,17 @@ export async function POST(request: NextRequest) {
 
     // Store AI response
     const { error: aiMessageError } = await supabase
-      .from('chat_messages')
-      .insert({
-        conversation_id: finalConversationId,
-        role: 'assistant',
-        content: aiResponse.content,
-        model_used: aiResponse.model_used,
-        provider_used: aiResponse.provider,
-        tokens_used: aiResponse.tokens_used.input + aiResponse.tokens_used.output,
-        latency_ms: aiResponse.latency_ms,
-        context_included: aiResponse.web_search_enabled
-      });
+          .from('chat_messages')
+          .insert({
+            conversation_id: finalConversationId,
+            role: 'assistant',
+            content: aiResponse.content,
+            model_used: aiResponse.model_used,
+            provider_used: aiResponse.provider,
+            tokens_used: aiResponse.tokens_used.input + aiResponse.tokens_used.output,
+            latency_ms: aiResponse.latency_ms,
+            context_included: aiResponse.web_search_enabled
+          } as Database['public']['Tables']['chat_messages']['Insert']);
 
     if (aiMessageError) {
       throw new Error(`Failed to store AI message: ${aiMessageError.message}`);
@@ -130,9 +140,9 @@ export async function POST(request: NextRequest) {
 
     // Update conversation timestamp
     await supabase
-      .from('chat_conversations')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', finalConversationId);
+          .from('chat_conversations')
+          .update({ updated_at: new Date().toISOString() } as Database['public']['Tables']['chat_conversations']['Update'])
+          .eq('id', finalConversationId);
 
     return NextResponse.json({
       response: aiResponse,

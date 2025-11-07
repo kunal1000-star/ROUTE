@@ -2,6 +2,7 @@
 
 import type { ProviderConfig, RateLimitStatus } from '@/types/ai-service-manager';
 import type { AIProvider } from '@/types/api-test';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 // API base URL
 const API_BASE = '/api/admin';
@@ -9,15 +10,15 @@ const API_BASE = '/api/admin';
 // Fetch current provider configurations
 export async function fetchProviderConfigs(): Promise<ProviderConfig[]> {
   try {
-    const response = await fetch(`${API_BASE}/providers`, {
+    const result = await safeApiCall(`${API_BASE}/providers`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch provider configurations');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error fetching provider configs:', error);
     throw error;
@@ -27,7 +28,7 @@ export async function fetchProviderConfigs(): Promise<ProviderConfig[]> {
 // Update provider configuration
 export async function updateProviderConfig(providerId: string, config: Partial<ProviderConfig>): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/providers/${providerId}`, {
+    const result = await safeApiCall(`${API_BASE}/providers/${providerId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
@@ -36,7 +37,7 @@ export async function updateProviderConfig(providerId: string, config: Partial<P
       body: JSON.stringify(config)
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to update provider configuration');
     }
   } catch (error) {
@@ -53,16 +54,16 @@ export async function testProviderConnection(providerId: string): Promise<{
   lastChecked: Date;
 }> {
   try {
-    const response = await fetch(`${API_BASE}/providers/${providerId}/test`, {
+    const result = await safeApiCall(`${API_BASE}/providers/${providerId}/test`, {
       method: 'POST',
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to test provider connection');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error testing provider connection:', error);
     throw error;
@@ -76,16 +77,16 @@ export async function testAllProviderConnections(): Promise<Record<string, {
   error?: string;
 }>> {
   try {
-    const response = await fetch(`${API_BASE}/providers/test-all`, {
+    const result = await safeApiCall(`${API_BASE}/providers/test-all`, {
       method: 'POST',
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to test provider connections');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error testing all provider connections:', error);
     throw error;
@@ -95,15 +96,15 @@ export async function testAllProviderConnections(): Promise<Record<string, {
 // Fetch rate limit status for all providers
 export async function fetchRateLimitStatus(): Promise<Record<AIProvider, RateLimitStatus>> {
   try {
-    const response = await fetch(`${API_BASE}/rate-limits`, {
+    const result = await safeApiCall(`${API_BASE}/rate-limits`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch rate limit status');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error fetching rate limit status:', error);
     throw error;
@@ -113,7 +114,7 @@ export async function fetchRateLimitStatus(): Promise<Record<AIProvider, RateLim
 // Save model overrides
 export async function saveModelOverrides(overrides: Record<string, string>): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/model-overrides`, {
+    const result = await safeApiCall(`${API_BASE}/model-overrides`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -122,7 +123,7 @@ export async function saveModelOverrides(overrides: Record<string, string>): Pro
       body: JSON.stringify({ overrides })
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to save model overrides');
     }
   } catch (error) {
@@ -134,16 +135,15 @@ export async function saveModelOverrides(overrides: Record<string, string>): Pro
 // Fetch current model overrides
 export async function fetchModelOverrides(): Promise<Record<string, string>> {
   try {
-    const response = await fetch(`${API_BASE}/model-overrides`, {
+    const result = await safeApiCall(`${API_BASE}/model-overrides`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch model overrides');
     }
     
-    const data = await response.json();
-    return data.overrides || {};
+    return result.data.overrides || {};
   } catch (error) {
     console.error('Error fetching model overrides:', error);
     throw error;
@@ -157,7 +157,7 @@ export async function saveFallbackChain(fallbackChain: Array<{
   enabled: boolean;
 }>): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/fallback-chain`, {
+    const result = await safeApiCall(`${API_BASE}/fallback-chain`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -166,7 +166,7 @@ export async function saveFallbackChain(fallbackChain: Array<{
       body: JSON.stringify({ fallbackChain })
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to save fallback chain');
     }
   } catch (error) {
@@ -182,16 +182,15 @@ export async function fetchFallbackChain(): Promise<Array<{
   enabled: boolean;
 }>> {
   try {
-    const response = await fetch(`${API_BASE}/fallback-chain`, {
+    const result = await safeApiCall(`${API_BASE}/fallback-chain`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch fallback chain');
     }
     
-    const data = await response.json();
-    return data.fallbackChain || [];
+    return result.data.fallbackChain || [];
   } catch (error) {
     console.error('Error fetching fallback chain:', error);
     throw error;
@@ -218,7 +217,7 @@ export async function saveChatSettings(settings: {
   };
 }): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/chat-settings`, {
+    const result = await safeApiCall(`${API_BASE}/chat-settings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -227,7 +226,7 @@ export async function saveChatSettings(settings: {
       body: JSON.stringify(settings)
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to save chat settings');
     }
   } catch (error) {
@@ -239,15 +238,15 @@ export async function saveChatSettings(settings: {
 // Fetch current chat settings
 export async function fetchChatSettings() {
   try {
-    const response = await fetch(`${API_BASE}/chat-settings`, {
+    const result = await safeApiCall(`${API_BASE}/chat-settings`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch chat settings');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error fetching chat settings:', error);
     throw error;
@@ -269,15 +268,15 @@ export async function fetchUsageStatistics(): Promise<{
   }>;
 }> {
   try {
-    const response = await fetch(`${API_BASE}/usage-statistics`, {
+    const result = await safeApiCall(`${API_BASE}/usage-statistics`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch usage statistics');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error fetching usage statistics:', error);
     throw error;
@@ -295,16 +294,15 @@ export async function fetchFallbackEvents(limit: number = 50): Promise<Array<{
   duration: number;
 }>> {
   try {
-    const response = await fetch(`${API_BASE}/fallback-events?limit=${limit}`, {
+    const result = await safeApiCall(`${API_BASE}/fallback-events?limit=${limit}`, {
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to fetch fallback events');
     }
     
-    const data = await response.json();
-    return data.events || [];
+    return result.data.events || [];
   } catch (error) {
     console.error('Error fetching fallback events:', error);
     throw error;
@@ -329,16 +327,16 @@ export async function refreshMonitoringData(): Promise<{
   };
 }> {
   try {
-    const response = await fetch(`${API_BASE}/monitoring/refresh`, {
+    const result = await safeApiCall(`${API_BASE}/monitoring/refresh`, {
       method: 'POST',
       credentials: 'include'
     });
     
-    if (!response.ok) {
+    if (!result.success) {
       throw new Error('Failed to refresh monitoring data');
     }
     
-    return await response.json();
+    return result.data;
   } catch (error) {
     console.error('Error refreshing monitoring data:', error);
     throw error;

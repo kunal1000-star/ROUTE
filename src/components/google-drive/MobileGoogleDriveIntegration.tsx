@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { safeApiCall } from '@/lib/utils/safe-api';
 import type { GoogleDriveFile, StudyMaterial } from '@/types/google-drive';
 
 // Icons
@@ -54,8 +55,7 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
   const checkConnectionStatus = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/google-drive/files?userId=${userId}&action=status`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/google-drive/files?userId=${userId}&action=status`);
       
       if (result.success) {
         setIsConnected(true);
@@ -78,8 +78,7 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
   const handleConnect = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/google-drive/auth?userId=${userId}`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/google-drive/auth?userId=${userId}`);
 
       if (result.success) {
         // Redirect to Google OAuth
@@ -105,8 +104,7 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
 
   const loadFiles = async () => {
     try {
-      const response = await fetch(`/api/google-drive/files?userId=${userId}`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/google-drive/files?userId=${userId}`);
 
       if (result.success && result.data) {
         setFiles(result.data.files || []);
@@ -118,12 +116,11 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
 
   const loadStudyMaterials = async () => {
     try {
-      const response = await fetch('/api/google-drive/files', {
+      const result = await safeApiCall('/api/google-drive/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, action: 'materials' })
       });
-      const result = await response.json();
 
       if (result.success && result.data) {
         setStudyMaterials(result.data.materials || []);
@@ -141,7 +138,7 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
 
     try {
       setIsLoading(true);
-      const response = await fetch('/api/google-drive/files', {
+      const result = await safeApiCall('/api/google-drive/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -150,7 +147,6 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
           searchQuery: searchQuery.trim() 
         })
       });
-      const result = await response.json();
 
       if (result.success && result.data) {
         setFiles(result.data.files || []);
@@ -186,7 +182,7 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
       try {
         setProcessingStatus(prev => ({ ...prev, [fileId]: 'processing' }));
         
-        const response = await fetch('/api/google-drive/process', {
+        const result = await safeApiCall('/api/google-drive/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -195,7 +191,6 @@ export function MobileGoogleDriveIntegration({ userId, onClose }: MobileGoogleDr
             action: 'process' 
           })
         });
-        const result = await response.json();
 
         if (result.success) {
           setProcessingStatus(prev => ({ ...prev, [fileId]: 'completed' }));

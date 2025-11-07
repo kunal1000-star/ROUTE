@@ -16,7 +16,7 @@ import type {
   GoogleDriveSettings
 } from '@/types/google-drive';
 import { getMistralAIService } from './mistral-integration';
-import { aiDataService } from './ai-data-centralization';
+import { aiDataService } from './ai-data-centralization-unified';
 
 export class GoogleDriveIntegrationService {
   private static instance: GoogleDriveIntegrationService;
@@ -439,6 +439,9 @@ export class GoogleDriveIntegrationService {
 
       // Create study material
       const material = await this.createStudyMaterial(userId, fileId, extractionResult.extractedContent);
+      if (!material) {
+        throw new Error('Failed to create study material');
+      }
 
       return {
         success: true,

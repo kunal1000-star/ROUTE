@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 interface FileAnalysis {
   id: string;
@@ -80,9 +81,9 @@ export function FileUploadModal({ isOpen, onClose, onAnalysisComplete }: FileUpl
 
   const loadGoogleDriveFiles = async () => {
     try {
-      const response = await fetch('/api/gdrive/list');
-      if (response.ok) {
-        const data = await response.json();
+      const result = await safeApiCall('/api/gdrive/list');
+      if (result.success) {
+        const data = result.data;
         setGoogleDriveFiles(data.files || []);
       }
     } catch (error) {
@@ -105,18 +106,20 @@ export function FileUploadModal({ isOpen, onClose, onAnalysisComplete }: FileUpl
       setCurrentStep('Getting file metadata...');
       setUploadProgress(20);
 
-      const response = await fetch('/api/gdrive/analyze', {
+      const result = await safeApiCall('/api/gdrive/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fileId: file.id,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Analysis failed');
+      if (result.isHtmlResponse) {
+        throw new Error('Received HTML response - please check authentication');
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Analysis failed');
       }
 
       setCurrentStep('Extracting content...');
@@ -124,18 +127,17 @@ export function FileUploadModal({ isOpen, onClose, onAnalysisComplete }: FileUpl
 
       setCurrentStep('Analyzing with AI...');
       setUploadProgress(75);
-
-      const result = await response.json();
       
       setCurrentStep('Finalizing results...');
       setUploadProgress(100);
 
-      if (result.success) {
+      const data = result.data;
+      if (data.success) {
         const analysis: FileAnalysis = {
-          id: result.analysisId,
-          fileId: result.fileId,
-          fileName: result.fileName,
-          analysis: result.analysis,
+          id: data.analysisId,
+          fileId: data.fileId,
+          fileName: data.fileName,
+          analysis: data.analysis,
           analysisDate: new Date().toISOString(),
         };
         setAnalysisResult(analysis);
@@ -143,7 +145,7 @@ export function FileUploadModal({ isOpen, onClose, onAnalysisComplete }: FileUpl
           onAnalysisComplete(analysis);
         }
       } else {
-        throw new Error(result.error || 'Analysis failed');
+        throw new Error(data.error || 'Analysis failed');
       }
     } catch (error) {
       console.error('Analysis error:', error);

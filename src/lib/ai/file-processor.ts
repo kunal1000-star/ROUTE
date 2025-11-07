@@ -1,6 +1,6 @@
 // File processing utilities for different file types
 import { google } from 'googleapis';
-import { pdfParse } from 'pdf-parse';
+import * as pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 
 const DRIVE_API_VERSION = 'v3';
@@ -32,7 +32,7 @@ export async function downloadFileFromDrive(fileId: string, accessToken: string)
 // Extract text from PDF
 export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   try {
-    const data = await pdfParse(pdfBuffer);
+    const data = await (pdfParse as any)(pdfBuffer);
     return data.text;
   } catch (error) {
     console.error('Error extracting text from PDF:', error);

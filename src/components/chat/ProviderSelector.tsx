@@ -20,6 +20,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 interface ProviderMetrics {
   provider: string;
@@ -112,9 +113,9 @@ export default function ProviderSelector({
   const fetchProviderMetrics = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/chat');
-      if (response.ok) {
-        const data = await response.json();
+      const result = await safeApiCall('/api/chat');
+      if (result.success) {
+        const data = result.data;
         if (data.success && data.data?.providers) {
           const metricsMap = new Map();
           data.data.providers.forEach((provider: any) => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/supabase';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager';
+import { aiServiceManager } from '@/lib/ai/ai-service-manager-unified';
 import { rateLimitTracker } from '@/lib/ai/rate-limit-tracker';
 import { apiUsageLogger } from '@/lib/ai/api-logger';
 import { MOCK_DASHBOARD_DATA } from '@/types/dashboard';

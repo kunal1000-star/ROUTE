@@ -1,9 +1,9 @@
 // AI Feature Suggestions Service
 // Generates intelligent study suggestions based on student data
-import { google } from 'googleapis';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const genAI = new google.generativeai({ apiKey: GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export interface Suggestion {
   id: string;
@@ -81,7 +81,7 @@ Focus on:
     const response = result.response;
     const textResponse = response.text();
     
-    const jsonMatch = textResponse.match(/\[.*\]/s);
+const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON found in AI response');
     }
@@ -148,7 +148,7 @@ Focus on:
     const response = result.response;
     const textResponse = response.text();
     
-    const jsonMatch = textResponse.match(/\[.*\]/s);
+const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON found in AI response');
     }
@@ -212,7 +212,7 @@ Focus on:
     const response = result.response;
     const textResponse = response.text();
     
-    const jsonMatch = textResponse.match(/\[.*\]/s);
+const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON found in AI response');
     }
@@ -278,7 +278,7 @@ Include:
     const response = result.response;
     const textResponse = response.text();
     
-    const jsonMatch = textResponse.match(/\[.*\]/s);
+const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON found in AI response');
     }
@@ -346,7 +346,7 @@ Focus on:
     const response = result.response;
     const textResponse = response.text();
     
-    const jsonMatch = textResponse.match(/\[.*\]/s);
+const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON found in AI response');
     }

@@ -6,6 +6,7 @@ import { User, Brain, Target, Award, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 interface StudentProfileData {
   profileText: string;
@@ -47,14 +48,18 @@ export function StudentProfileCard({ userId, className = '' }: StudentProfileCar
   const fetchProfileData = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/student/profile?userId=${userId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
-      }
+      const result = await safeApiCall(`/api/student/profile?userId=${userId}`);
 
-      const data = await response.json();
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for student profile:', result.error);
+        throw new Error('Received HTML response - please check authentication');
+      }
       
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch profile');
+      }
+      
+      const data = result.data;
       if (data.success) {
         setProfileData(data.data);
         setError(null);

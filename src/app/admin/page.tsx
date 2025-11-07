@@ -16,7 +16,9 @@ import {
   Download,
   Upload,
   Save,
-  ArrowLeft
+  ArrowLeft,
+  Bug,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -250,6 +252,10 @@ export default function AdminPanel() {
               <Badge variant={systemHealth?.status === 'healthy' ? 'default' : 'destructive'}>
                 {systemHealth?.status || 'Loading...'}
               </Badge>
+              <Button onClick={() => router.push('/admin/debug')} variant="outline">
+                <Bug className="h-4 w-4 mr-2" />
+                Debug Dashboard
+              </Button>
               <Button onClick={loadSystemData} variant="outline">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -259,8 +265,9 @@ export default function AdminPanel() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 overflow-x-auto scrollbar-hide">
+          <TabsList className="grid w-full grid-cols-9 overflow-x-auto scrollbar-hide">
             <TabsTrigger value="overview" className="flex-shrink-0 text-xs">Overview</TabsTrigger>
+            <TabsTrigger value="debug" className="flex-shrink-0 text-xs">Debug</TabsTrigger>
             <TabsTrigger value="providers" className="flex-shrink-0 text-xs">Providers</TabsTrigger>
             <TabsTrigger value="model-overrides" className="flex-shrink-0 text-xs">Model Overrides</TabsTrigger>
             <TabsTrigger value="fallback-chain" className="flex-shrink-0 text-xs">Fallback Chain</TabsTrigger>
@@ -336,6 +343,59 @@ export default function AdminPanel() {
                   </Card>
                 </div>
 
+                {/* Quick Actions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="p-6">
+                    <h3 className="font-semibold mb-4">Quick Actions</h3>
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => router.push('/admin/debug')}
+                        className="w-full justify-start"
+                        variant="outline"
+                      >
+                        <Bug className="h-4 w-4 mr-2" />
+                        Open Debug Dashboard
+                        <ExternalLink className="h-4 w-4 ml-auto" />
+                      </Button>
+                      <Button onClick={testAllProviders} variant="outline" className="w-full justify-start">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Test All AI Providers
+                      </Button>
+                    </div>
+                  </Card>
+
+                  <Card className="p-6">
+                    <h3 className="font-semibold mb-4">Recent Activity</h3>
+                    <div className="space-y-3">
+                      {testResults.length > 0 ? testResults.slice(0, 3).map((result, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            {result.success ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            )}
+                            <div>
+                              <p className="font-medium">{result.provider}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {result.responseTime}ms response time
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant={result.success ? 'default' : 'destructive'}>
+                            {result.success ? 'Success' : 'Failed'}
+                          </Badge>
+                        </div>
+                      )) : (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <Monitor className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No recent activity</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+
                 {/* Provider Status */}
                 <Card className="p-6">
                   <h3 className="font-semibold mb-4">Provider Status</h3>
@@ -360,43 +420,44 @@ export default function AdminPanel() {
                     ))}
                   </div>
                 </Card>
-
-                {/* Recent Activity */}
-                <Card className="p-6">
-                  <h3 className="font-semibold mb-4">Recent Activity</h3>
-                  <div className="space-y-3">
-                    {testResults.length > 0 ? testResults.map((result, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div className="flex items-center gap-3">
-                          {result.success ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                          <div>
-                            <p className="font-medium">{result.provider}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {result.responseTime}ms response time
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant={result.success ? 'default' : 'destructive'}>
-                          {result.success ? 'Success' : 'Failed'}
-                        </Badge>
-                      </div>
-                    )) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Monitor className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No recent activity</p>
-                        <Button onClick={testAllProviders} variant="outline" className="mt-2">
-                          Test All Providers
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Card>
               </>
             )}
+          </TabsContent>
+
+          {/* Debug Tab */}
+          <TabsContent value="debug" className="space-y-6">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold">AI System Debug Dashboard</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Comprehensive testing and monitoring of all AI system components
+                  </p>
+                </div>
+                <Button onClick={() => router.push('/admin/debug')}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Full Debug Dashboard
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 border rounded-lg">
+                  <Bug className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+                  <h4 className="font-medium">Authentication Testing</h4>
+                  <p className="text-sm text-muted-foreground">Test NextAuth and Supabase auth flows</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                  <h4 className="font-medium">AI Provider Tests</h4>
+                  <p className="text-sm text-muted-foreground">Test individual AI providers</p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <Monitor className="h-8 w-8 mx-auto mb-2 text-purple-500" />
+                  <h4 className="font-medium">System Monitoring</h4>
+                  <p className="text-sm text-muted-foreground">Real-time system health and performance</p>
+                </div>
+              </div>
+            </Card>
           </TabsContent>
 
           {/* Providers Tab */}

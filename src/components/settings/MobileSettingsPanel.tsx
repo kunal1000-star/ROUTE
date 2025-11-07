@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useMobile } from '@/hooks/use-mobile';
+import { safeApiCall } from '@/lib/utils/safe-api';
 import type { 
   UserSettings, 
   AIModelSettings, 
@@ -70,8 +71,8 @@ export default function MobileSettingsPanel({ userId, onClose }: MobileSettingsP
     setIsLoading(true);
     try {
       const [settingsResponse, statsResponse] = await Promise.all([
-        fetch(`/api/user/settings?userId=${userId}`).then(res => res.json()),
-        fetch(`/api/user/settings/statistics?userId=${userId}`).then(res => res.json())
+        safeApiCall(`/api/user/settings?userId=${userId}`),
+        safeApiCall(`/api/user/settings/statistics?userId=${userId}`)
       ]);
 
       if (settingsResponse.success) {
@@ -100,7 +101,7 @@ export default function MobileSettingsPanel({ userId, onClose }: MobileSettingsP
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/user/settings`, {
+      const result = await safeApiCall(`/api/user/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,8 +109,6 @@ export default function MobileSettingsPanel({ userId, onClose }: MobileSettingsP
           settings: tempSettings
         })
       });
-
-      const result = await response.json();
 
       if (result.success) {
         setSettings(tempSettings);
@@ -142,11 +141,9 @@ export default function MobileSettingsPanel({ userId, onClose }: MobileSettingsP
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/user/settings/reset?userId=${userId}`, {
+      const result = await safeApiCall(`/api/user/settings/reset?userId=${userId}`, {
         method: 'POST'
       });
-
-      const result = await response.json();
 
       if (result.success) {
         setSettings(result.data);
@@ -173,8 +170,7 @@ export default function MobileSettingsPanel({ userId, onClose }: MobileSettingsP
 
   const exportSettings = async () => {
     try {
-      const response = await fetch(`/api/user/settings/export?userId=${userId}`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/user/settings/export?userId=${userId}`);
 
       if (result.success) {
         const dataStr = JSON.stringify(result.data, null, 2);

@@ -1,4 +1,4 @@
-eh// Study Schedule Data Service - Enhancement 2B Implementation
+// Study Schedule Data Service - Enhancement 2B Implementation
 // Fetches and structures schedule data for AI suggestions
 
 import { supabase } from '../supabase';
@@ -7,9 +7,9 @@ import { format, subDays, isToday } from 'date-fns';
 
 export interface ScheduleBlock {
   id: string;
-  start_time: string;
+  startTime: string;
   duration: number;
-  subject?: string;
+  subject: string;
   type: 'Study' | 'Question' | 'Revision';
   completed: boolean;
   date: string;
@@ -44,7 +44,7 @@ export async function getUserScheduleData(userId: string): Promise<StudySchedule
   const { data: sessions, error: sessionsError } = await supabase
     .from('sessions')
     .select('block_id, created_at')
-    .in('block_id', blocks?.map(b => b.id) || []);
+    .in('block_id', blocks?.map((b: any) => b.id) || []);
 
   if (sessionsError) {
     throw new Error(`Failed to fetch sessions: ${sessionsError.message}`);
@@ -55,12 +55,12 @@ export async function getUserScheduleData(userId: string): Promise<StudySchedule
 
   // Process today's schedule
   const today = format(new Date(), 'yyyy-MM-dd');
-  const todayBlocks = blocks?.filter(b => b.date === today) || [];
-  const todayScheduleBlocks: ScheduleBlock[] = todayBlocks.map(block => ({
+  const todayBlocks = blocks?.filter((b: any) => b.date === today) || [];
+  const todayScheduleBlocks: ScheduleBlock[] = todayBlocks.map((block: any) => ({
     id: block.id,
-    start_time: block.start_time,
+    startTime: block.start_time,
     duration: block.duration,
-    subject: block.subject,
+    subject: block.subject || 'General',
     type: block.type,
     completed: completedBlockIds.has(block.id),
     date: block.date
@@ -142,7 +142,7 @@ function calculatePerformanceMetrics(blocks: any[], completedBlockIds: Set<strin
 // Analyze historical patterns for optimization
 function analyzeHistoricalPatterns(blocks: any[], completedBlockIds: Set<string>) {
   // Group blocks by day to find completion patterns
-  const dayGroups = blocks.reduce((acc, block) => {
+  const dayGroups = blocks.reduce((acc: Record<number, { total: number; completed: number }>, block: any) => {
     const day = new Date(block.date).getDay(); // 0 = Sunday, 1 = Monday, etc.
     if (!acc[day]) {
       acc[day] = { total: 0, completed: 0 };
@@ -160,7 +160,7 @@ function analyzeHistoricalPatterns(blocks: any[], completedBlockIds: Set<string>
       day: parseInt(day),
       rate: data.total > 0 ? data.completed / data.total : 0
     }))
-    .filter(d => d.rate > 0);
+    .filter((d: any) => d.rate > 0);
 
   // Consistent completion days = days with >80% completion rate
   const consistentDays = completionRates.filter(d => d.rate > 0.8).length;
@@ -184,7 +184,7 @@ function findInterruptionPatterns(blocks: any[], completedBlockIds: Set<string>)
   const interruptions: string[] = [];
   
   // Analyze time-based interruptions
-  const timeInterruptionRates = blocks.reduce((acc, block) => {
+  const timeInterruptionRates = blocks.reduce((acc: Record<number, { total: number; missed: number }>, block: any) => {
     const hour = parseInt(block.start_time.split(':')[0]);
     const isCompleted = completedBlockIds.has(block.id);
     if (!acc[hour]) {
@@ -199,7 +199,7 @@ function findInterruptionPatterns(blocks: any[], completedBlockIds: Set<string>)
 
   // Find hours with high interruption rates (>50% missed)
   Object.entries(timeInterruptionRates).forEach(([hour, data]) => {
-    const missedRate = data.missed / data.total;
+    const missedRate = (data as any).missed / (data as any).total;
     if (missedRate > 0.5) {
       interruptions.push(`${hour}:00 - High interruption rate (${Math.round(missedRate * 100)}%)`);
     }
@@ -212,21 +212,21 @@ function findInterruptionPatterns(blocks: any[], completedBlockIds: Set<string>)
 function calculateOptimalBreakIntervals(blocks: any[]) {
   // Simple algorithm: analyze session duration patterns
   const durations = blocks
-    .filter(b => b.duration)
-    .map(b => b.duration)
-    .sort((a, b) => a - b);
+    .filter((b: any) => b.duration)
+    .map((b: any) => b.duration)
+    .sort((a: number, b: number) => a - b);
   
   if (durations.length === 0) return 15; // Default 15 minutes
   
   // Find the most common duration range
-  const durationCounts = durations.reduce((acc, duration) => {
+  const durationCounts = durations.reduce((acc: Record<number, number>, duration: number) => {
     const range = Math.floor(duration / 30) * 30; // Group by 30-minute ranges
     acc[range] = (acc[range] || 0) + 1;
     return acc;
   }, {} as Record<number, number>);
 
-  const mostCommonDuration = Object.entries(durationCounts)
-    .sort(([,a], [,b]) => b - a)[0][0];
+  const mostCommonDuration = Number(Object.entries(durationCounts)
+    .sort(([,a], [,b]) => (b as number) - (a as number))[0][0]);
 
   // Suggest break interval as 15-20% of session duration
   return Math.max(10, Math.min(25, Math.floor(mostCommonDuration * 0.2)));
@@ -234,7 +234,7 @@ function calculateOptimalBreakIntervals(blocks: any[]) {
 
 // Extract peak productivity hours
 function extractPeakHours(blocks: any[]) {
-  const hourPerformance = blocks.reduce((acc, block) => {
+  const hourPerformance = blocks.reduce((acc: Record<number, { total: number; weight: number }>, block: any) => {
     const hour = parseInt(block.start_time.split(':')[0]);
     const date = new Date(block.date);
     const dayOfWeek = date.getDay();
@@ -253,11 +253,11 @@ function extractPeakHours(blocks: any[]) {
   return Object.entries(hourPerformance)
     .map(([hour, data]) => ({
       hour: parseInt(hour),
-      score: data.weight / data.total // Normalize by total count
+      score: (data as any).weight / (data as any).total // Normalize by total count
     }))
-    .sort((a, b) => b.score - a.score)
+    .sort((a: any, b: any) => b.score - a.score)
     .slice(0, 6)
-    .map(({ hour }) => `${hour.toString().padStart(2, '0')}:00`);
+    .map(({ hour }: any) => `${hour.toString().padStart(2, '0')}:00`);
 }
 
 // Get subject performance data

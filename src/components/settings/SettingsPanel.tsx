@@ -17,14 +17,15 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { 
-  UserSettings, 
-  AIModelSettings, 
-  FeaturePreferences, 
-  NotificationSettings, 
-  PrivacyControls, 
+import { safeApiCall } from '@/lib/utils/safe-api';
+import type {
+  UserSettings,
+  AIModelSettings,
+  FeaturePreferences,
+  NotificationSettings,
+  PrivacyControls,
   UsageMonitoring,
-  UsageStatistics 
+  UsageStatistics
 } from '@/types/settings';
 
 // Icons (using Lucide React icons)
@@ -70,18 +71,45 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
   const loadUserSettings = async () => {
     setIsLoading(true);
     try {
-      const [settingsResponse, statsResponse] = await Promise.all([
-        fetch(`/api/user/settings?userId=${userId}`).then(res => res.json()),
-        fetch(`/api/user/settings/statistics?userId=${userId}`).then(res => res.json())
+      const [settingsResult, statsResult] = await Promise.all([
+        safeApiCall(`/api/user/settings?userId=${userId}`),
+        safeApiCall(`/api/user/settings/statistics?userId=${userId}`)
       ]);
 
-      if (settingsResponse.success) {
-        setSettings(settingsResponse.data);
-        setTempSettings(settingsResponse.data);
+      if (settingsResult.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for settings:', settingsResult.error);
+        toast({
+          title: 'Settings Error',
+          description: 'Received HTML response - please check authentication',
+          variant: 'destructive'
+        });
+        return;
       }
 
-      if (statsResponse.success) {
-        setUsageStats(statsResponse.data);
+      if (settingsResult.success && settingsResult.data.success) {
+        setSettings(settingsResult.data.data);
+        setTempSettings(settingsResult.data.data);
+      } else {
+        console.error('❌ Failed to load settings:', settingsResult.error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load settings',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (statsResult.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for statistics:', statsResult.error);
+        setUsageStats(null);
+        return;
+      }
+
+      if (statsResult.success && statsResult.data.success) {
+        setUsageStats(statsResult.data.data);
+      } else {
+        console.error('❌ Failed to load statistics:', statsResult.error);
+        setUsageStats(null);
       }
 
     } catch (error) {
@@ -101,7 +129,7 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/user/settings`, {
+      const result = await safeApiCall(`/api/user/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,9 +138,27 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
         })
       });
 
-      const result = await response.json();
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for save settings:', result.error);
+        toast({
+          title: 'Save Failed',
+          description: 'Received HTML response - please check authentication',
+          variant: 'destructive'
+        });
+        return;
+      }
 
-      if (result.success) {
+      if (!result.success) {
+        console.error('❌ Failed to save settings:', result.error);
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to save settings',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (result.data.success) {
         setSettings(tempSettings);
         setHasUnsavedChanges(false);
         toast({
@@ -121,7 +167,7 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
           variant: 'default'
         });
       } else {
-        throw new Error(result.error);
+        throw new Error(result.data.error || 'Failed to save settings');
       }
 
     } catch (error) {
@@ -143,20 +189,45 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/user/settings/reset?userId=${userId}`, {
+      const result = await safeApiCall(`/api/user/settings/reset?userId=${userId}`, {
         method: 'POST'
       });
 
-      const result = await response.json();
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for reset settings:', result.error);
+        toast({
+          title: 'Reset Failed',
+          description: 'Received HTML response - please check authentication',
+          variant: 'destructive'
+        });
+        return;
+      }
 
-      if (result.success) {
-        setSettings(result.data);
-        setTempSettings(result.data);
+      if (!result.success) {
+        console.error('❌ Failed to reset settings:', result.error);
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to reset settings',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (result.data.success) {
+        setSettings(result.data.data);
+        setTempSettings(result.data.data);
         setHasUnsavedChanges(false);
         toast({
           title: 'Success',
           description: 'Settings reset to defaults',
           variant: 'default'
+        });
+      } else {
+        console.error('❌ Reset failed:', result.data.error);
+        toast({
+          title: 'Error',
+          description: result.data.error || 'Failed to reset settings',
+          variant: 'destructive'
         });
       }
 
@@ -174,11 +245,30 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
 
   const exportSettings = async () => {
     try {
-      const response = await fetch(`/api/user/settings/export?userId=${userId}`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/user/settings/export?userId=${userId}`);
 
-      if (result.success) {
-        const dataStr = JSON.stringify(result.data, null, 2);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for export settings:', result.error);
+        toast({
+          title: 'Export Failed',
+          description: 'Received HTML response - please check authentication',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ Failed to export settings:', result.error);
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to export settings',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (result.data.success) {
+        const dataStr = JSON.stringify(result.data.data, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
         
@@ -194,6 +284,13 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
           title: 'Success',
           description: 'Settings exported successfully',
           variant: 'default'
+        });
+      } else {
+        console.error('❌ Export failed:', result.data.error);
+        toast({
+          title: 'Error',
+          description: result.data.error || 'Failed to export settings',
+          variant: 'destructive'
         });
       }
 

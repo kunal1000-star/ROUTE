@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager';
+import { aiServiceManager } from '@/lib/ai/ai-service-manager-unified';
 import { rateLimitTracker } from '@/lib/ai/rate-limit-tracker';
 import { responseCache } from '@/lib/ai/response-cache';
 import type { AIProvider } from '@/types/api-test';

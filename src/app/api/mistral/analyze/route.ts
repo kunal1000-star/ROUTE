@@ -3,8 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getMistralAIService, type ImageAnalysisResult } from '@/lib/ai/mistral-integration';
-import { aiDataService } from '@/lib/ai/ai-data-centralization';
-import type { AIUserProfile } from '@/lib/ai/ai-data-centralization';
+import { aiDataService, type AIUserProfile } from '@/lib/ai/ai-data-centralization-unified';
 import type { StudentProfile } from '@/lib/ai/ai-suggestions';
 
 export async function POST(request: NextRequest) {
@@ -30,15 +29,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user profile for AI analysis
-    const userProfile = await aiDataService.getAIUserProfile(userId, {
-      includeDetailedPatterns: true,
-      includePersonalization: true,
-      timeRange: 'month'
-    });
+    let userProfile;
+    try {
+      userProfile = await aiDataService.getAIUserProfile(userId, {
+        includeDetailedPatterns: true,
+        includePersonalization: true,
+        timeRange: 'month'
+      });
+    } catch (profileError) {
+      console.error('Error getting user profile:', profileError);
+      return NextResponse.json(
+        { error: 'Failed to get user profile', details: profileError instanceof Error ? profileError.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'User profile not found' },
+        { error: 'User profile not found for user: ' + userId },
         { status: 404 }
       );
     }

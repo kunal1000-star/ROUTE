@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { AIProvider } from '@/types/api-test';
+import type { ChatType } from '@/types/ai-service-manager';
 
 // Simple request/response interfaces for this route
 interface ChatMessageRequest {
@@ -31,28 +32,39 @@ interface ChatMessageResponse {
   };
 }
 
-// Graceful chat service initialization with fallbacks
+// Graceful AI service manager initialization with fallbacks
 async function getChatServiceSafely() {
   try {
-    // Try to import the JavaScript-compatible chat service
-    const { getChatService, getInitializedChatService } = await import('@/lib/ai/chat/simple-index');
+    // Import the unified AI service manager
+    const { aiServiceManager } = await import('@/lib/ai/ai-service-manager-unified');
     
     try {
-      // Try to get existing service first
-      const service = getChatService();
-      return { service, error: null, initialized: true };
-    } catch (getError) {
-      // Try to initialize if not available
-      const service = await getInitializedChatService();
-      return { service, error: null, initialized: true };
+      // Test the service manager health
+      const health = await aiServiceManager.healthCheck();
+      const hasHealthyProviders = Object.values(health).some(h => h.healthy);
+      
+      return { 
+        service: aiServiceManager, 
+        error: null, 
+        initialized: hasHealthyProviders,
+        health 
+      };
+    } catch (healthError) {
+      console.warn('AI service manager health check failed:', healthError);
+      return {
+        service: aiServiceManager,
+        error: healthError instanceof Error ? healthError.message : String(healthError),
+        initialized: false,
+        reason: 'AI service manager health check failed'
+      };
     }
   } catch (importError) {
-    console.warn('Chat service initialization failed:', importError instanceof Error ? importError.message : String(importError));
+    console.warn('AI service manager import failed:', importError instanceof Error ? importError.message : String(importError));
     return {
       service: null,
       error: importError instanceof Error ? importError.message : String(importError),
       initialized: false,
-      reason: 'Chat service modules not available'
+      reason: 'AI service manager modules not available'
     };
   }
 }
@@ -122,22 +134,18 @@ export async function POST(request: NextRequest) {
 
     if (chatService && initialized) {
       try {
-        // Convert API request to internal format
-        const chatRequest = {
+        // Convert API request to unified AI service manager format
+        const aiRequest = {
+          userId: body.sessionId || 'anonymous',
+          conversationId: body.sessionId || `conv-${Date.now()}`,
           message: body.message,
-          context: body.context,
-          preferences: {
-            ...body.preferences,
-            streamResponses: false, // Force non-streaming for this endpoint
-          },
-          provider: body.provider as AIProvider,
-          sessionId: body.sessionId,
-          stream: false,
+          chatType: 'general' as ChatType,
+          includeAppData: false
         };
 
-        // Send message using real chat service
-        response = await chatService.sendMessage(chatRequest);
-        sessionId = chatRequest.sessionId || (response as any).sessionId;
+        // Send message using unified AI service manager
+        response = await chatService.processQuery(aiRequest);
+        sessionId = aiRequest.conversationId;
       } catch (serviceError) {
         console.warn('Chat service error, using mock response:', serviceError);
         response = createMockChatResponse(body.message);
@@ -238,21 +246,21 @@ export async function GET() {
     
     if (chatService && initialized) {
       try {
-        // Get real service configuration and metrics
-        const config = chatService.getConfig();
-        const metrics = chatService.getProviderMetrics();
+        // Get service statistics from unified AI service manager
+        const stats = await chatService.getStatistics();
+        const health = await chatService.healthCheck();
         
         serviceInfo = {
           healthy: true,
           version: '1.0.0',
           offlineMode: false,
-          config: config,
+          providers: stats.providers,
         } as any;
         
-        providers = metrics;
+        providers = stats.providers;
         
         capabilities = {
-          streaming: true,
+          streaming: false,
           fallback: true,
           sessionManagement: true,
           studyContext: true,

@@ -2,7 +2,7 @@
 // =================================================================
 
 import type { AIServiceManagerResponse } from '@/types/ai-service-manager';
-import { aiServiceManager } from './ai-service-manager-fixed';
+import { aiServiceManager } from './ai-service-manager-unified';
 import { testLogger } from './logger';
 
 // Feature Categories and Definitions

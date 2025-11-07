@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Slider } from '@/components/ui/slider';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 interface ChatSettings {
   // General Chat Settings
@@ -132,10 +133,10 @@ export function ChatSettingsTab() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/chat-settings');
+      const result = await safeApiCall('/api/admin/chat-settings');
       
-      if (response.ok) {
-        const data = await response.json();
+      if (result.success) {
+        const data = result.data;
         if (data.success) {
           setSettings(data.data);
           setOriginalSettings(data.data);
@@ -143,7 +144,7 @@ export function ChatSettingsTab() {
           throw new Error('Settings response invalid');
         }
       } else {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(result.error || 'Failed to load settings');
       }
     } catch (error) {
       console.warn('Failed to load chat settings, using defaults:', error);
@@ -157,18 +158,18 @@ export function ChatSettingsTab() {
   const saveSettings = async () => {
     try {
       setSaving(true);
-      const response = await fetch('/api/admin/chat-settings', {
+      const result = await safeApiCall('/api/admin/chat-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
       
-      if (response.ok) {
+      if (result.success) {
         setHasUnsavedChanges(false);
         setOriginalSettings(settings);
         alert('Chat settings saved successfully!');
       } else {
-        throw new Error('Failed to save settings');
+        throw new Error(result.error || 'Failed to save settings');
       }
     } catch (error) {
       console.error('Failed to save settings:', error);

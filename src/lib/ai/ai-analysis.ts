@@ -1,10 +1,10 @@
 // AI Analysis service for file content using Gemini 2.0 Flash-Lite
-import { google } from 'googleapis';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 
 // Initialize Gemini API
-const genAI = new google.generativeai({ apiKey: GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Analysis result interface
 export interface FileAnalysisResult {

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/hooks/use-auth-listener';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -38,9 +38,8 @@ type TestResult = {
 };
 
 export default function DebugPage() {
-  const { data: session, status } = useSession();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [user, setUser] = useState<User | null>(null);
   
   // Debug Panel State
   const [syncQueue, setSyncQueue] = useState<SyncQueueItem[]>([]);
@@ -60,13 +59,10 @@ export default function DebugPage() {
   }, [toast]);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-    };
-    fetchUser();
-    refreshDebugData();
-  }, [refreshDebugData]);
+    if (user) {
+      refreshDebugData();
+    }
+  }, [user, refreshDebugData]);
 
   const handleCreateNote = async (storageType: 'local' | 'gdrive') => {
     if (!user) {
@@ -181,7 +177,7 @@ export default function DebugPage() {
              <Button className="w-full" onClick={() => handleCreateNote('local')} disabled={isProcessing}>
                 {isProcessing ? <Loader2 className="animate-spin" /> : 'Create Local Note'}
              </Button>
-             <Button className="w-full" onClick={() => handleCreateNote('gdrive')} disabled={isProcessing || status !== 'authenticated'}>
+             <Button className="w-full" onClick={() => handleCreateNote('gdrive')} disabled={isProcessing || !user}>
                 {isProcessing ? <Loader2 className="animate-spin" /> : 'Create GDrive Note'}
              </Button>
              <Separator />
@@ -189,30 +185,30 @@ export default function DebugPage() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Force Sync
              </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button className="w-full" variant="destructive" disabled={isProcessing}>
-                    <Trash2 className="mr-2 h-4 w-4" /> Clean Invalid Data
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                  <AlertDialogHeader>
-                      <AlertDialogTitle>Clean Invalid Note Data?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                          This will permanently delete any local notes that are missing a subject ID and remove them from the sync queue. This action cannot be undone.
-                      </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleCleanup} className={cn(buttonVariants({ variant: "destructive" }))}>Yes, Clean Data</AlertDialogAction>
-                  </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+           <AlertDialog>
+             <AlertDialogTrigger asChild>
+               <Button className="w-full" variant="destructive" disabled={isProcessing}>
+                   <Trash2 className="mr-2 h-4 w-4" /> Clean Invalid Data
+               </Button>
+             </AlertDialogTrigger>
+             <AlertDialogContent>
+                 <AlertDialogHeader>
+                     <AlertDialogTitle>Clean Invalid Note Data?</AlertDialogTitle>
+                     <AlertDialogDescription>
+                         This will permanently delete any local notes that are missing a subject ID and remove them from the sync queue. This action cannot be undone.
+                     </AlertDialogDescription>
+                 </AlertDialogHeader>
+                 <AlertDialogFooter>
+                     <AlertDialogCancel>Cancel</AlertDialogCancel>
+                     <AlertDialogAction onClick={handleCleanup} className={cn(buttonVariants({ variant: "destructive" }))}>Yes, Clean Data</AlertDialogAction>
+                 </AlertDialogFooter>
+             </AlertDialogContent>
+           </AlertDialog>
 
-             <a href="/docs/GOOGLE_DRIVE_SETUP.md" target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                View Setup Guide
-            </a>
+            <a href="/docs/GOOGLE_DRIVE_SETUP.md" target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+               <ExternalLink className="mr-2 h-4 w-4" />
+               View Setup Guide
+           </a>
           </CardContent>
         </Card>
 
@@ -227,9 +223,7 @@ export default function DebugPage() {
             <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                     <span className="font-medium">Google Drive Connection</span>
-                    {status === 'loading' ? (
-                        <Loader2 className="animate-spin" />
-                    ) : status === 'authenticated' ? (
+                    {user ? (
                         <div className="flex items-center gap-2 text-green-600">
                             <CheckCircle />
                             <span>Connected</span>

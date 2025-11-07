@@ -15,10 +15,11 @@ import {
   ChatUIState,
   RateLimitInfo
 } from '@/types/chat';
-import { useAuthListener } from '@/hooks/use-auth-listener';
+import { useAuth } from '@/hooks/use-auth-listener';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 export function useChat() {
-  const { user } = useAuthListener();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<GeneralChatMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingState, setLoadingState] = useState<ChatLoadingState>({
@@ -64,18 +65,21 @@ export function useChat() {
         chatType,
       };
 
-      const response = await fetch('/api/chat/conversations', {
+      const result = await safeApiCall('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       });
 
-      const data: CreateConversationResponse = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to create conversation');
+      if (result.isHtmlResponse) {
+        throw new Error('Received HTML response - authentication may be required');
       }
 
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create conversation');
+      }
+
+      const data: CreateConversationResponse = result.data;
       const newConversation: Conversation = {
         id: data.data.conversationId,
         title: data.data.title,
@@ -113,13 +117,19 @@ export function useChat() {
       const params = new URLSearchParams({ userId: user.id });
       if (chatType) params.append('chatType', chatType);
 
-      const response = await fetch(`/api/chat/conversations?${params}`);
-      const data: GetConversationsResponse = await response.json();
+      const result = await safeApiCall(`/api/chat/conversations?${params}`);
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to load conversations');
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for conversations:', result.error);
+        setConversations([]);
+        return;
       }
 
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load conversations');
+      }
+
+      const data: GetConversationsResponse = result.data;
       setConversations(data.data);
 
     } catch (err) {
@@ -138,13 +148,19 @@ export function useChat() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/messages?conversationId=${conversationId}`);
-      const data: GetMessagesResponse = await response.json();
+      const result = await safeApiCall(`/api/chat/messages?conversationId=${conversationId}`);
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to load messages');
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for messages:', result.error);
+        setMessages([]);
+        return;
       }
 
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load messages');
+      }
+
+      const data: GetMessagesResponse = result.data;
       const transformedMessages: GeneralChatMessage[] = data.data.messages.map(msg => ({
         ...msg,
         isLoading: false,
@@ -152,9 +168,16 @@ export function useChat() {
       }));
 
       setMessages(transformedMessages);
-      setUIState(prev => ({ 
-        ...prev, 
-        selectedConversation: data.data.conversation,
+      setUIState(prev => ({
+        ...prev,
+        selectedConversation: {
+          id: data.data.conversation.id,
+          title: data.data.conversation.title,
+          chatType: data.data.conversation.chatType as 'general' | 'study_assistant',
+          createdAt: data.data.conversation.createdAt,
+          updatedAt: data.data.conversation.updatedAt,
+          messageCount: data.data.messages.length
+        },
         isFirstMessage: data.data.messages.length === 0,
       }));
 
@@ -177,7 +200,7 @@ export function useChat() {
 
     // Check rate limiting
     if (rateLimitInfo?.isLimited && rateLimitInfo.retryAfter) {
-      setUIState(prev => ({ ...prev, retryCountdown: rateLimitInfo.retryAfter }));
+      setUIState(prev => ({ ...prev, retryCountdown: Math.max(0, rateLimitInfo.retryAfter || 0) }));
       setError({ 
         code: 'RATE_LIMITED', 
         message: `High traffic! Please wait ${rateLimitInfo.retryAfter} seconds before next message.`,
@@ -233,21 +256,28 @@ export function useChat() {
         chatType: 'general',
       };
 
-      const response = await fetch('/api/chat/general/send', {
+      const result = await safeApiCall('/api/chat/general/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       });
 
-      const data: SendMessageResponse = await response.json();
-
       // Remove loading message
       setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
 
-      if (!response.ok) {
-        // Handle specific error types
-        if (response.status === 429) {
-          const retryAfter = Math.ceil(data.retryAfter || 60);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for send message:', result.error);
+        setError({ 
+          code: 'SERVICE_UNAVAILABLE', 
+          message: 'Received HTML response - please check authentication' 
+        });
+        return;
+      }
+
+      if (!result.success) {
+        // Check for rate limiting in error response
+        if (result.error?.includes('429') || result.error?.includes('rate limit')) {
+          const retryAfter = 60; // Default to 60 seconds
           setRateLimitInfo({ 
             isLimited: true, 
             retryAfter, 
@@ -258,16 +288,16 @@ export function useChat() {
             message: `High traffic! Please wait ${retryAfter} seconds before next message.`,
             retryAfter
           });
-        } else if (response.status === 503) {
-          setError({
-            code: 'SERVICE_UNAVAILABLE',
-            message: 'Sorry, servers are busy right now. Please try again in a moment.'
-          });
         } else {
-          throw new Error(data.error || 'Failed to send message');
+          setError({
+            code: 'SEND_MESSAGE_FAILED',
+            message: result.error || 'Failed to send message'
+          });
         }
         return;
       }
+
+      const data: SendMessageResponse = result.data;
 
       // Add AI response
       const aiMessage: GeneralChatMessage = {
@@ -309,12 +339,17 @@ export function useChat() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/conversations/${conversationId}`, {
-        method: 'DELETE',
+      const result = await safeApiCall(`/api/chat/conversations/${conversationId}`, {
+        method: 'DELETE'
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete conversation');
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for delete conversation:', result.error);
+        return;
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete conversation');
       }
 
       // Update local state

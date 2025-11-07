@@ -1,7 +1,7 @@
 // Health Check Job
 // ================
 
-import { aiServiceManager } from '../ai/ai-service-manager';
+import { aiServiceManager } from '../ai/ai-service-manager-unified';
 import { rateLimitTracker } from '../ai/rate-limit-tracker';
 import { supabase } from '../supabase';
 import type { JobResult } from './scheduler';

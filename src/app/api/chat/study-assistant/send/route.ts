@@ -2,13 +2,8 @@
 // ====================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager-fixed';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,7 +88,7 @@ export async function POST(request: NextRequest) {
     // Update conversation timestamp
     await supabase
       .from('chat_conversations')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ updated_at: new Date().toISOString() } as Database['public']['Tables']['chat_conversations']['Update'])
       .eq('id', finalConversationId);
 
     return NextResponse.json({

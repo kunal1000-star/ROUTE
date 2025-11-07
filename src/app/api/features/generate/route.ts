@@ -113,16 +113,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse context if provided
-    let parsedContext = {};
-    if (context) {
-      try {
-        parsedContext = JSON.parse(context);
-      } catch (e) {
-        return NextResponse.json(
-          { error: 'Invalid context JSON' },
-          { status: 400 }
-        );
-      }
+    let parsedContext = context ? JSON.parse(context) : {};
+    if (context && typeof parsedContext !== 'object') {
+      console.log('Invalid context JSON: ', context);
+      return NextResponse.json(
+        { error: 'Invalid context JSON' },
+        { status: 400 }
+      );
     }
 
     // Execute single feature

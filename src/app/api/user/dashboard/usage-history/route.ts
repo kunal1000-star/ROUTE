@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/supabase';
 import { apiUsageLogger } from '@/lib/ai/api-logger';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager';
+import { aiServiceManager } from '@/lib/ai/ai-service-manager-unified';
 
 // GET /api/user/dashboard/usage-history
 export async function GET(request: NextRequest) {

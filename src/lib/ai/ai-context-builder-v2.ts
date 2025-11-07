@@ -1,6 +1,6 @@
 'use server';
 
-import { aiDataService, type AIUserProfile, type AIContextOptions } from './ai-data-centralization';
+import { aiDataService, type AIUserProfile, type AIContextOptions } from './ai-data-centralization-unified';
 import { format, parseISO } from 'date-fns';
 
 export type ContextType = 'minimal' | 'standard' | 'comprehensive';

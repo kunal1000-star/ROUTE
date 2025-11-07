@@ -1,6 +1,4 @@
-'use server';
-
-import { aiDataService } from './ai-data-centralization';
+import { aiDataService } from './ai-data-centralization-unified';
 
 interface PerformanceMetric {
   queryType: string;

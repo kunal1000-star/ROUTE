@@ -16,19 +16,63 @@ const supabase = createClient(
 );
 
 async function authenticateUser(request: NextRequest) {
+  console.log('🔐 Authenticating user request...');
+  
+  // Check for Supabase Bearer token first
   const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return { authorized: false, message: 'Authorization header missing' };
+  if (authHeader?.startsWith('Bearer ')) {
+    console.log('🔑 Supabase Bearer token found');
+    const token = authHeader.substring(7);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.log('❌ Supabase token validation failed:', error?.message);
+      return { authorized: false, message: 'Invalid or expired Supabase token' };
+    }
+    
+    console.log('✅ Supabase authentication successful');
+    return { authorized: true, user };
   }
-
-  const token = authHeader.substring(7);
-  const { data: { user }, error } = await supabase.auth.getUser(token);
   
-  if (error || !user) {
-    return { authorized: false, message: 'Invalid or expired token' };
+  // Check for NextAuth headers
+  const nextAuthUser = request.headers.get('X-NextAuth-User');
+  const nextAuthId = request.headers.get('X-NextAuth-Id');
+  const nextAuthEmail = request.headers.get('X-NextAuth-Email');
+  
+  if (nextAuthUser && nextAuthId) {
+    console.log('🔑 NextAuth headers found');
+    console.log('📋 NextAuth User:', nextAuthUser);
+    console.log('📋 NextAuth ID:', nextAuthId);
+    console.log('📋 NextAuth Email:', nextAuthEmail);
+    
+    // For NextAuth users, create a mock user object
+    // Note: In production, you might want to verify this user exists in your database
+    const user = {
+      id: nextAuthId,
+      email: nextAuthEmail || nextAuthUser,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email_confirmed_at: new Date().toISOString(),
+      phone: '',
+      confirmed_at: new Date().toISOString(),
+      last_sign_in_at: new Date().toISOString(),
+      app_metadata: {},
+      user_metadata: {
+        email_verified: true,
+        provider: 'google',
+        providers: ['google']
+      },
+      identities: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('✅ NextAuth authentication successful');
+    return { authorized: true, user };
   }
   
-  return { authorized: true, user };
+  console.log('❌ No valid authentication found');
+  return { authorized: false, message: 'No valid authentication found' };
 }
 
 // GET /api/suggestions - Get AI suggestions for current user

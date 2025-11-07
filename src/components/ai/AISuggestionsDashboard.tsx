@@ -31,6 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import SuggestionCard from './SuggestionCard';
 import { useToast } from '@/hooks/use-toast';
+import { safeApiCall } from '@/lib/utils/safe-api';
 
 interface Suggestion {
   id: string;
@@ -75,6 +76,7 @@ export function AISuggestionsDashboard({
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
+
   // Fetch suggestions on component mount
   useEffect(() => {
     fetchSuggestions();
@@ -90,11 +92,15 @@ export function AISuggestionsDashboard({
       if (refresh) params.set('refresh', 'true');
       if (selectedFilter !== 'all') params.set('type', selectedFilter);
       
-      const response = await fetch(`/api/suggestions?${params}`);
-      const data = await response.json();
+      const result = await safeApiCall(`/api/suggestions?${params}`);
       
-      console.log('📡 Suggestions API response:', data);
+      console.log('📡 Suggestions API response:', result);
       
+if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch suggestions');
+      }
+
+      const data = result.data;
       if (data.success && data.suggestions) {
         console.log('✅ Setting suggestions from API response');
         setSuggestions(data.suggestions);
@@ -106,7 +112,6 @@ export function AISuggestionsDashboard({
         }
       } else {
         console.log('⚠️  API response not successful, using empty suggestions');
-        // Graceful fallback - set empty suggestions instead of throwing error
         setSuggestions([]);
         toast({
           title: "Suggestions Unavailable",
@@ -116,8 +121,6 @@ export function AISuggestionsDashboard({
       }
     } catch (error) {
       console.error('❌ Error fetching suggestions:', error);
-      // Graceful fallback - set empty suggestions on any error
-      console.log('🔄 Setting empty suggestions due to error');
       setSuggestions([]);
       toast({
         title: "Connection Error",
@@ -135,18 +138,19 @@ export function AISuggestionsDashboard({
       
       console.log('⚡ Generating new AI suggestions...');
       
-      const response = await fetch('/api/suggestions', {
+      const result = await safeApiCall('/api/suggestions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ forceRefresh: true })
       });
       
-      const data = await response.json();
+      console.log('📡 Generation API response:', result);
+
+if (!result.success) {
+        throw new Error(result.error || 'Failed to generate suggestions');
+      }
       
-      console.log('📡 Generation API response:', data);
-      
+      const data = result.data;
       if (data.success) {
         console.log('✅ Suggestions generated successfully');
         toast({
@@ -157,8 +161,6 @@ export function AISuggestionsDashboard({
         // Refresh suggestions after generation
         await fetchSuggestions(true);
       } else {
-        console.log('⚠️  Generation failed, showing error message');
-        // Graceful handling - show error message but don't throw
         toast({
           title: "Generation Failed",
           description: data.error || "Failed to generate suggestions. Please try again.",
@@ -167,7 +169,6 @@ export function AISuggestionsDashboard({
       }
     } catch (error) {
       console.error('❌ Error generating suggestions:', error);
-      // Graceful handling
       toast({
         title: "Generation Failed",
         description: "Failed to generate new suggestions. Please try again.",
@@ -182,27 +183,25 @@ export function AISuggestionsDashboard({
     try {
       console.log('✅ Applying suggestion:', suggestionId);
       
-      const response = await fetch(`/api/suggestions?id=${suggestionId}`, {
+      const result = await safeApiCall(`/api/suggestions?id=${suggestionId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'apply' })
       });
+
+if (!result.success) {
+        throw new Error(result.error || 'Failed to apply suggestion');
+      }
       
-      const data = await response.json();
-      
+      const data = result.data;
       if (data.success) {
         console.log('✅ Suggestion applied successfully');
-        // Remove from local state
         setSuggestions(prev => prev.filter(s => s.id !== suggestionId));
         toast({
           title: "Suggestion Applied",
           description: "The suggestion has been applied to your study plan.",
         });
       } else {
-        console.log('⚠️  Failed to apply suggestion');
-        // Graceful handling - show error but don't throw
         toast({
           title: "Apply Failed",
           description: data.error || "Failed to apply suggestion. Please try again.",
@@ -211,7 +210,6 @@ export function AISuggestionsDashboard({
       }
     } catch (error) {
       console.error('❌ Error applying suggestion:', error);
-      // Graceful handling
       toast({
         title: "Error",
         description: "Failed to apply suggestion. Please try again.",
@@ -224,27 +222,25 @@ export function AISuggestionsDashboard({
     try {
       console.log('🚫 Dismissing suggestion:', suggestionId);
       
-      const response = await fetch(`/api/suggestions?id=${suggestionId}`, {
+      const result = await safeApiCall(`/api/suggestions?id=${suggestionId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'dismiss' })
       });
+
+if (!result.success) {
+        throw new Error(result.error || 'Failed to dismiss suggestion');
+      }
       
-      const data = await response.json();
-      
+      const data = result.data;
       if (data.success) {
         console.log('✅ Suggestion dismissed successfully');
-        // Remove from local state
         setSuggestions(prev => prev.filter(s => s.id !== suggestionId));
         toast({
           title: "Suggestion Dismissed",
           description: "The suggestion has been dismissed.",
         });
       } else {
-        console.log('⚠️  Failed to dismiss suggestion');
-        // Graceful handling - show error but don't throw
         toast({
           title: "Dismiss Failed",
           description: data.error || "Failed to dismiss suggestion. Please try again.",
@@ -253,7 +249,6 @@ export function AISuggestionsDashboard({
       }
     } catch (error) {
       console.error('❌ Error dismissing suggestion:', error);
-      // Graceful handling
       toast({
         title: "Error",
         description: "Failed to dismiss suggestion. Please try again.",
@@ -266,20 +261,21 @@ export function AISuggestionsDashboard({
     try {
       console.log('💬 Submitting feedback for suggestion:', suggestionId);
       
-      const response = await fetch(`/api/suggestions?id=${suggestionId}`, {
+      const result = await safeApiCall(`/api/suggestions?id=${suggestionId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           action: 'feedback',
           feedbackRating: rating,
           feedbackText: comment
         })
       });
+
+if (!result.success) {
+        throw new Error(result.error || 'Failed to submit feedback');
+      }
       
-      const data = await response.json();
-      
+      const data = result.data;
       if (data.success) {
         console.log('✅ Feedback submitted successfully');
         toast({
@@ -287,8 +283,6 @@ export function AISuggestionsDashboard({
           description: "Thank you for your feedback!",
         });
       } else {
-        console.log('⚠️  Failed to submit feedback');
-        // Graceful handling - show error but don't throw
         toast({
           title: "Feedback Failed",
           description: data.error || "Failed to submit feedback. Please try again.",
@@ -297,7 +291,6 @@ export function AISuggestionsDashboard({
       }
     } catch (error) {
       console.error('❌ Error submitting feedback:', error);
-      // Graceful handling
       toast({
         title: "Error",
         description: "Failed to submit feedback. Please try again.",
@@ -437,6 +430,7 @@ export function AISuggestionsDashboard({
       )}
 
       {!compact && renderStats()}
+
 
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-4">

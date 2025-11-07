@@ -1,150 +1,281 @@
-nohup: ignoring input
 
 > nextn@0.1.0 dev
 > next dev --turbopack
 
+ ⚠ Port 3000 is in use by an unknown process, using available port 3003 instead.
    ▲ Next.js 15.5.6 (Turbopack)
-   - Local:        http://localhost:3000
-   - Network:      http://10.88.0.3:3000
+   - Local:        http://localhost:3003
+   - Network:      http://10.0.4.81:3003
    - Environments: .env
+   - Experiments (use with caution):
+     · serverActions
 
  ✓ Starting...
- ✓ Ready in 2000ms
- ○ Compiling /api/admin/embeddings/settings ...
- GET /api/admin/embeddings/settings 200 in 2819ms
- ✓ Compiled /api/admin/embeddings/settings in 6.5s
- GET / 200 in 5754ms
- GET /api/admin/embeddings/settings 200 in 455ms
- ✓ Compiled /api/admin/embeddings/usage in 258ms
- GET /api/admin/embeddings/usage 200 in 767ms
- ○ Compiling /admin/embeddings ...
- ✓ Compiled /admin/embeddings in 805ms
- GET /admin/embeddings 200 in 972ms
- POST /api/admin/embeddings/settings 200 in 275ms
- POST /api/admin/embeddings/settings 200 in 277ms
- GET /api/admin/embeddings/settings 200 in 395ms
- GET /admin/embeddings 200 in 157ms
- GET / 200 in 199ms
- GET /api/admin/embeddings/settings 200 in 374ms
- GET /api/admin/embeddings/settings 200 in 379ms
- ✓ Compiled in 183ms
- ✓ Compiled /admin/embeddings in 38ms
- GET /admin/embeddings 200 in 510ms
- GET /admin/embeddings 200 in 155ms
- ✓ Compiled in 196ms
- ✓ Compiled /admin/embeddings in 31ms
- GET /admin/embeddings 200 in 493ms
- ✓ Compiled in 298ms
- ✓ Compiled /admin/embeddings in 34ms
- GET /admin/embeddings 200 in 505ms
- GET /admin/embeddings 200 in 157ms
- GET /api/admin/embeddings/settings 200 in 380ms
- GET / 200 in 185ms
- ✓ Compiled in 355ms
- ✓ Compiled in 1768ms
- ⚠ Failed to reload dynamic routes: [Error: ENOSPC: no space left on device, write] {
-  errno: -28,
-  code: 'ENOSPC',
-  syscall: 'write'
+ ✓ Ready in 1294ms
+ ○ Compiling / ...
+ ✓ Compiled / in 7.5s
+ GET / 200 in 8119ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ GET /favicon.ico?favicon.7ed73651.ico 200 in 1874ms
+ ✓ Compiled /api/auth/[...nextauth] in 2.2s
+ GET /api/auth/session 200 in 3844ms
+ ○ Compiling /api/chat ...
+ ✓ Compiled /api/chat in 1148ms
+[req-1762439507862-697a37i5t] Processing query for user anonymous, conversation conv-1762439507862
+Performing health check on all providers...
+✅ groq: healthy (17ms)
+✅ gemini: healthy (795ms)
+✅ cerebras: healthy (342ms)
+✅ cohere: healthy (308ms)
+✅ mistral: healthy (351ms)
+✅ openrouter: healthy (67ms)
+Healthy providers: groq, gemini, cerebras, cohere, mistral, openrouter
+[req-1762439507862-697a37i5t] Query detected as: general
+[req-1762439507862-697a37i5t] Available providers: groq, gemini, cerebras, cohere, mistral, openrouter
+[req-1762439507862-697a37i5t] Trying provider: groq
+[req-1762439507862-697a37i5t] Provider groq failed: Error: Groq authentication failed - check API key
+    at GroqClient.handleError (src/lib/ai/providers/groq-client.ts:378:14)
+    at GroqClient.chat (src/lib/ai/providers/groq-client.ts:114:22)
+    at async AIServiceManager.callProvider (src/lib/ai/ai-service-manager-unified.ts:401:20)
+    at async AIServiceManager.processQuery (src/lib/ai/ai-service-manager-unified.ts:123:28)
+    at async POST (src/app/api/chat/route.ts:147:20)
+  376 |     
+  377 |     if (error.message?.includes('401') || error.message?.includes('403')) {
+> 378 |       return new Error('Groq authentication failed - check API key');
+      |              ^
+  379 |     }
+  380 |     
+  381 |     return new Error(`Groq error: ${error.message} (attempt ${attempt}/${this.maxRetries})`);
+[req-1762439507862-697a37i5t] Trying provider: gemini
+[req-1762439507862-697a37i5t] Provider gemini failed: Error: Gemini error: Gemini API error: 404 Not Found - models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods. (attempt 3/3)
+    at GeminiClient.handleError (src/lib/ai/providers/gemini-client.ts:471:12)
+    at GeminiClient.chat (src/lib/ai/providers/gemini-client.ts:177:22)
+    at async AIServiceManager.callProvider (src/lib/ai/ai-service-manager-unified.ts:409:20)
+    at async AIServiceManager.processQuery (src/lib/ai/ai-service-manager-unified.ts:123:28)
+    at async POST (src/app/api/chat/route.ts:147:20)
+  469 |     }
+  470 |     
+> 471 |     return new Error(`Gemini error: ${error.message} (attempt ${attempt}/${this.maxRetries})`);
+      |            ^
+  472 |   }
+  473 |
+  474 |   /**
+[req-1762439507862-697a37i5t] Trying provider: cerebras
+[req-1762439507862-697a37i5t] Success with provider: cerebras
+ POST /api/chat 200 in 20412ms
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- ✓ Compiled / in 3ms
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- ○ Compiling /_error ...
- ✓ Compiled /_error in 2.1s
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zeanz0jpoyj'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zeanz0jpoyj'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
-[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+ ✓ Compiled /api/chat/general/send in 326ms
+Incoming request headers: Headers {
+  host: 'localhost:3003',
+  'user-agent': 'curl/8.5.0',
+  accept: '*/*',
+  'content-type': 'application/json',
+  'content-length': '95',
+  'x-forwarded-host': 'localhost:3003',
+  'x-forwarded-port': '3003',
+  'x-forwarded-proto': 'http',
+  'x-forwarded-for': '::1'
 }
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zqbae54kj5d'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.zqbae54kj5d'
+Parsed request body: {
+  userId: 'test-user-123',
+  message: 'Hello, this is a test message!',
+  chatType: 'general'
 }
-[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.ddut8hczvnf'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.ddut8hczvnf'
+UserId: test-user-123
+ConversationId: undefined
+Message: Hello, this is a test message!
+ChatType: general
+Chat send error: Error: Failed to create conversation: invalid input syntax for type uuid: "test-user-123"
+    at POST (src/app/api/chat/general/send/route.ts:79:15)
+  77 |
+  78 |       if (error) {
+> 79 |         throw new Error(`Failed to create conversation: ${error.message}`);
+     |               ^
+  80 |       }
+  81 |
+  82 |       finalConversationId = newConversation.id;
+ POST /api/chat/general/send 500 in 1326ms
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.mh5c6n3kon'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.mh5c6n3kon'
+ ✓ Compiled /api/chat/study-assistant/send in 228ms
+Study assistant send error: Error: Failed to create conversation: new row violates row-level security policy for table "chat_conversations"
+    at POST (src/app/api/chat/study-assistant/send/route.ts:39:15)
+  37 |
+  38 |       if (error) {
+> 39 |         throw new Error(`Failed to create conversation: ${error.message}`);
+     |               ^
+  40 |       }
+  41 |
+  42 |       finalConversationId = newConversation.id;
+ POST /api/chat/study-assistant/send 500 in 1015ms
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
-[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/page/app-build-manifest.json'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.r508ayf7g3e'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.r508ayf7g3e'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
-[Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.7jjpzykmx5b'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/static/development/_buildManifest.js.tmp.7jjpzykmx5b'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- ✓ Compiled in 396ms
- ○ Compiling /admin ...
- ✓ Compiled /admin in 731ms
- GET /admin 200 in 1298ms
- ✓ Compiled /admin/embeddings in 26ms
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- GET /admin/embeddings 500 in 456ms
- GET /admin 200 in 171ms
- GET /admin 200 in 606ms
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- GET /admin/embeddings 500 in 137ms
- ✓ Compiled in 1259ms
- ✓ Compiled in 453ms
- ✓ Compiled /admin/embeddings in 11ms
- ⨯ [Error: ENOENT: no such file or directory, open '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'] {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/user/ProjectFinal/.next/server/app/admin/embeddings/page/build-manifest.json'
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
 }
- GET /admin/embeddings 500 in 120ms
- ✓ Compiled /admin in 33ms
- GET /admin 200 in 622ms
- GET / 200 in 278ms
- GET / 200 in 204ms
- GET / 200 in 202ms
- GET / 200 in 165ms
- GET / 200 in 152ms
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}
+Failed to insert API usage logs: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'fallback_used' column of 'api_usage_logs' in the schema cache"
+}

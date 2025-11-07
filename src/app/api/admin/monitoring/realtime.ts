@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { aiServiceManager } from '@/lib/ai/ai-service-manager';
+import { aiServiceManager } from '@/lib/ai/ai-service-manager-unified';
 
 // GET /api/admin/monitoring/realtime
 export async function GET(request: NextRequest) {

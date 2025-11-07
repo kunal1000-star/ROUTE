@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCurrentUser } from '@/lib/supabase';
+import { safeApiCall } from '@/lib/utils/safe-api';
+import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { AIFeaturesEngine } from '@/lib/ai/ai-features-engine';
@@ -50,9 +52,11 @@ interface ChatConversation {
 
 interface GeneralChatProps {
   className?: string;
+  userId?: string;
 }
 
 export default function GeneralChat({ className }: GeneralChatProps) {
+  const { toast } = useToast();
   const [userId, setUserId] = useState<string>('');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<ChatConversation | null>(null);
@@ -61,7 +65,7 @@ export default function GeneralChat({ className }: GeneralChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [aiFeaturesActive, setAiFeaturesActive] = useState(false);
   const [aiFeaturesData, setAiFeaturesData] = useState<any>(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
@@ -108,13 +112,26 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
       setIsLoadingConversations(true);
       console.log('🔍 Loading conversations for user:', userId);
       
-      const response = await fetch(`/api/chat/conversations?userId=${userId}&chatType=general`);
-      const data = await response.json();
+      const result = await safeApiCall(`/api/chat/conversations?userId=${userId}&chatType=general`);
       
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for conversations:', result.error);
+        setConversations([]);
+        return;
+      }
+      
+      if (!result.success) {
+        console.error('❌ Failed to load conversations:', result.error);
+        setConversations([]);
+        return;
+      }
+      
+      const data = result.data;
       console.log('📋 Conversations loaded:', data);
       setConversations(data.conversations || []);
     } catch (error) {
       console.error('Failed to load conversations:', error);
+      setConversations([]);
     } finally {
       setIsLoadingConversations(false);
     }
@@ -122,11 +139,25 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const loadMessages = async (conversationId: string) => {
     try {
-      const response = await fetch(`/api/chat/messages?conversationId=${conversationId}`);
-      const data = await response.json();
+      const result = await safeApiCall(`/api/chat/messages?conversationId=${conversationId}`);
+      
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for messages:', result.error);
+        setMessages([]);
+        return;
+      }
+      
+      if (!result.success) {
+        console.error('❌ Failed to load messages:', result.error);
+        setMessages([]);
+        return;
+      }
+      
+      const data = result.data;
       setMessages(data.messages || []);
     } catch (error) {
       console.error('Failed to load messages:', error);
+      setMessages([]);
     }
   };
 
@@ -139,7 +170,7 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
     try {
       console.log('🔄 Creating new conversation...');
       
-      const response = await fetch('/api/chat/conversations', {
+      const result = await safeApiCall('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,8 +180,12 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
         })
       });
       
-      const data = await response.json();
+      if (!result.success) {
+        console.error('❌ Failed to create conversation:', result.error);
+        return;
+      }
       
+      const data = result.data;
       if (data.conversation) {
         console.log('✅ Conversation created:', data.conversation);
         setCurrentConversation(data.conversation);
@@ -191,7 +226,7 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
     try {
       console.log('💬 Sending message in General Chat...');
       
-      const response = await fetch('/api/chat/general/send', {
+      const result = await safeApiCall('/api/chat/general/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -202,8 +237,8 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
         })
       });
 
-      if (!response.ok) {
-        console.log('⚠️  API response not ok:', response.status);
+      if (!result.success) {
+        console.log('⚠️ API response failed:', result.error);
         // Graceful handling - remove user message and add error message
         setMessages(prev => prev.filter(m => m.id !== userMessage.id));
         
@@ -217,7 +252,7 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
         return;
       }
 
-      const data = await response.json();
+      const data = result.data;
       const aiResponse = data.response;
 
       console.log('✅ Got successful response from General Chat API');
@@ -292,7 +327,7 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
     try {
       console.log('🧠 Generating AI insights for user:', userId);
       
-      const response = await fetch('/api/features/generate', {
+      const result = await safeApiCall('/api/features/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -313,23 +348,22 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!result.success) {
+        throw new Error(`AI insights failed: ${result.error}`);
       }
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Response is not JSON format');
-      }
-
-      const data = await response.json();
+      const data = result.data;
       setAiFeaturesData(data);
       setAiFeaturesActive(true);
       console.log('✅ AI insights generated successfully');
     } catch (error) {
       console.error('❌ Failed to generate AI insights:', error);
       // Show user-friendly error message
-      alert(`AI insights temporarily unavailable: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later.`);
+      toast({
+        title: 'AI Insights Unavailable',
+        description: `AI insights temporarily unavailable: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later.`,
+        variant: 'destructive'
+      });
     } finally {
       setIsGeneratingInsights(false);
     }

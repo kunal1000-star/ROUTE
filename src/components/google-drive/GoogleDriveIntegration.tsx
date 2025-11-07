@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { safeApiCall } from '@/lib/utils/safe-api';
 import type { GoogleDriveFile, StudyMaterial } from '@/types/google-drive';
 
 interface GoogleDriveIntegrationProps {
@@ -38,10 +39,21 @@ export function GoogleDriveIntegration({ userId, onClose }: GoogleDriveIntegrati
   const checkConnectionStatus = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/google-drive/files?userId=${userId}&action=status`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/google-drive/files?userId=${userId}&action=status`);
       
-      if (result.success) {
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for Google Drive connection:', result.error);
+        setIsConnected(false);
+        return;
+      }
+      
+      if (!result.success) {
+        console.error('❌ Failed to check Google Drive connection:', result.error);
+        setIsConnected(false);
+        return;
+      }
+      
+      if (result.data.success) {
         setIsConnected(true);
         await loadFiles();
         await loadStudyMaterials();
@@ -59,16 +71,35 @@ export function GoogleDriveIntegration({ userId, onClose }: GoogleDriveIntegrati
   const handleConnect = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/google-drive/auth?userId=${userId}`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/google-drive/auth?userId=${userId}`);
 
-      if (result.success) {
-        // Redirect to Google OAuth
-        window.location.href = result.data.authUrl;
-      } else {
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for Google Drive auth:', result.error);
+        toast({
+          title: 'Connection Failed',
+          description: 'Received HTML response - authentication may be required',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ Failed to connect to Google Drive:', result.error);
         toast({
           title: 'Connection Failed',
           description: result.error || 'Failed to initiate Google Drive connection',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (result.data.success) {
+        // Redirect to Google OAuth
+        window.location.href = result.data.data.authUrl;
+      } else {
+        toast({
+          title: 'Connection Failed',
+          description: result.data.error || 'Failed to initiate Google Drive connection',
           variant: 'destructive'
         });
       }
@@ -86,31 +117,59 @@ export function GoogleDriveIntegration({ userId, onClose }: GoogleDriveIntegrati
 
   const loadFiles = async () => {
     try {
-      const response = await fetch(`/api/google-drive/files?userId=${userId}`);
-      const result = await response.json();
+      const result = await safeApiCall(`/api/google-drive/files?userId=${userId}`);
 
-      if (result.success && result.data) {
-        setFiles(result.data.files || []);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for loading files:', result.error);
+        setFiles([]);
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ Failed to load files:', result.error);
+        setFiles([]);
+        return;
+      }
+
+      if (result.data.success && result.data.data) {
+        setFiles(result.data.data.files || []);
+      } else {
+        setFiles([]);
       }
     } catch (error) {
       console.error('Error loading files:', error);
+      setFiles([]);
     }
   };
 
   const loadStudyMaterials = async () => {
     try {
-      const response = await fetch('/api/google-drive/files', {
+      const result = await safeApiCall('/api/google-drive/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, action: 'materials' })
       });
-      const result = await response.json();
 
-      if (result.success && result.data) {
-        setStudyMaterials(result.data.materials || []);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for study materials:', result.error);
+        setStudyMaterials([]);
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ Failed to load study materials:', result.error);
+        setStudyMaterials([]);
+        return;
+      }
+
+      if (result.data.success && result.data.data) {
+        setStudyMaterials(result.data.data.materials || []);
+      } else {
+        setStudyMaterials([]);
       }
     } catch (error) {
       console.error('Error loading study materials:', error);
+      setStudyMaterials([]);
     }
   };
 
@@ -122,26 +181,45 @@ export function GoogleDriveIntegration({ userId, onClose }: GoogleDriveIntegrati
 
     try {
       setIsLoading(true);
-      const response = await fetch('/api/google-drive/files', {
+      const result = await safeApiCall('/api/google-drive/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId, 
-          action: 'search', 
-          searchQuery: searchQuery.trim() 
+        body: JSON.stringify({
+          userId,
+          action: 'search',
+          searchQuery: searchQuery.trim()
         })
       });
-      const result = await response.json();
 
-      if (result.success && result.data) {
-        setFiles(result.data.files || []);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for file search:', result.error);
+        setFiles([]);
+        return;
+      }
+
+      if (!result.success) {
+        console.error('❌ Failed to search files:', result.error);
+        setFiles([]);
+        toast({
+          title: 'Search Error',
+          description: 'Failed to search files',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (result.data.success && result.data.data) {
+        setFiles(result.data.data.files || []);
         toast({
           title: 'Search Complete',
-          description: `Found ${result.data.files?.length || 0} files`,
+          description: `Found ${result.data.data.files?.length || 0} files`,
         });
+      } else {
+        setFiles([]);
       }
     } catch (error) {
       console.error('Error searching files:', error);
+      setFiles([]);
       toast({
         title: 'Search Error',
         description: 'Failed to search files',
@@ -167,18 +245,39 @@ export function GoogleDriveIntegration({ userId, onClose }: GoogleDriveIntegrati
       try {
         setProcessingStatus(prev => ({ ...prev, [fileId]: 'processing' }));
         
-        const response = await fetch('/api/google-drive/process', {
+        const result = await safeApiCall('/api/google-drive/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId, 
-            fileId, 
-            action: 'process' 
+          body: JSON.stringify({
+            userId,
+            fileId,
+            action: 'process'
           })
         });
-        const result = await response.json();
 
-        if (result.success) {
+        if (result.isHtmlResponse) {
+          console.warn('⚠️ HTML response detected for file processing:', result.error);
+          setProcessingStatus(prev => ({ ...prev, [fileId]: 'failed' }));
+          toast({
+            title: 'Processing Failed',
+            description: `Failed to process file: HTML response received`,
+            variant: 'destructive'
+          });
+          continue;
+        }
+
+        if (!result.success) {
+          console.error(`❌ Failed to process file ${fileId}:`, result.error);
+          setProcessingStatus(prev => ({ ...prev, [fileId]: 'failed' }));
+          toast({
+            title: 'Processing Failed',
+            description: `Failed to process file: ${result.error}`,
+            variant: 'destructive'
+          });
+          continue;
+        }
+
+        if (result.data.success) {
           setProcessingStatus(prev => ({ ...prev, [fileId]: 'completed' }));
           // Refresh study materials
           await loadStudyMaterials();
@@ -186,13 +285,18 @@ export function GoogleDriveIntegration({ userId, onClose }: GoogleDriveIntegrati
           setProcessingStatus(prev => ({ ...prev, [fileId]: 'failed' }));
           toast({
             title: 'Processing Failed',
-            description: `Failed to process file: ${result.error}`,
+            description: `Failed to process file: ${result.data.error || 'Unknown error'}`,
             variant: 'destructive'
           });
         }
       } catch (error) {
         setProcessingStatus(prev => ({ ...prev, [fileId]: 'failed' }));
         console.error(`Error processing file ${fileId}:`, error);
+        toast({
+          title: 'Processing Error',
+          description: `Failed to process file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          variant: 'destructive'
+        });
       }
     }
 

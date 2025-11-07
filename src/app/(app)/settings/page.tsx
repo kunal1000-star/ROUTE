@@ -16,7 +16,7 @@ import type { PomodoroTemplate } from '../schedule/page';
 import { AddTemplateModal } from '@/components/modals/add-template-modal';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useAuth } from '@/hooks/use-auth-listener';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { triggerSync } from '@/lib/syncEngine';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -611,9 +611,43 @@ function SpacedRepetitionSettings() {
 
 
 function GoogleDriveSettings() {
-    const { data: session, status } = useSession();
+    const { user } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
 
-    if (status === 'loading') {
+    const handleSignOut = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            await supabaseBrowserClient.auth.signOut();
+            // Force page reload to update state
+            window.location.reload();
+        } catch (error) {
+            console.error('Sign out error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const handleSignIn = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const { error } = await supabaseBrowserClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    scopes: 'https://www.googleapis.com/auth/drive.file',
+                    redirectTo: window.location.origin + '/settings'
+                }
+            });
+            if (error) {
+                console.error('Sign in error:', error);
+            }
+        } catch (error) {
+            console.error('Sign in error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+    
+    if (!user) {
         return (
             <Card>
                 <CardHeader><CardTitle>Google Drive Sync</CardTitle></CardHeader>
@@ -629,18 +663,18 @@ function GoogleDriveSettings() {
                 <CardDescription>Connect your Google account to sync and back up your notes to Google Drive.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                {session ? (
+                {user ? (
                     <div className="space-y-4">
                         <div className="flex items-center gap-4 rounded-md border p-4">
                             <Avatar className="h-12 w-12">
-                                <AvatarImage src={session.user?.image || undefined} alt="User Avatar" />
-                                <AvatarFallback>{session.user?.name?.[0]}</AvatarFallback>
+                                <AvatarImage src={user.user_metadata?.avatar_url || undefined} alt="User Avatar" />
+                                <AvatarFallback>{user.user_metadata?.full_name?.[0] || user.email?.[0]}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                                <p className="font-semibold">{session.user?.name}</p>
-                                <p className="text-sm text-muted-foreground">{session.user?.email}</p>
+                                <p className="font-semibold">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
-                            <Button variant="outline" onClick={() => signOut()}>
+                            <Button variant="outline" onClick={handleSignOut} disabled={isLoading}>
                                 <LogOut className="mr-2 h-4 w-4" /> Disconnect
                             </Button>
                         </div>
@@ -656,7 +690,7 @@ function GoogleDriveSettings() {
                     <div className="flex flex-col items-center justify-center gap-4 rounded-md border p-8 text-center">
                         <h3 className="font-semibold">Connect to Google Drive</h3>
                         <p className="text-sm text-muted-foreground">Back up your notes and sync across devices by connecting your Google Account.</p>
-                        <Button onClick={() => signIn('google')}>
+                        <Button onClick={handleSignIn} disabled={isLoading}>
                             Connect Google Drive
                         </Button>
                     </div>

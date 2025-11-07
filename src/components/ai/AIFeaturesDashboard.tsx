@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import { safeApiCall } from '@/lib/utils/safe-api';
 import { 
   Brain, 
   TrendingUp, 
@@ -106,6 +108,7 @@ export default function AIFeaturesDashboard() {
   const [generating, setGenerating] = useState<Record<number, boolean>>({});
   const [selectedCategory, setSelectedCategory] = useState('performance_analysis');
   const [userId] = useState('demo-user'); // In real app, get from auth
+  const { toast } = useToast();
 
   // Load initial data
   useEffect(() => {
@@ -117,19 +120,25 @@ export default function AIFeaturesDashboard() {
       setLoading(true);
       
       // Load metrics and status with proper error handling
-      const response = await fetch('/api/features/metrics?includeStatus=true');
+      const result = await safeApiCall('/api/features/metrics?includeStatus=true');
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for features metrics:', result.error);
+        // Set fallback data when HTML response is received
+        setStatus({
+          initialized: false,
+          totalFeatures: 22,
+          enabledFeatures: 0,
+          cachedEntries: 0
+        });
+        return;
       }
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Response is not JSON format');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load metrics');
       }
       
-      const data = await response.json();
-      
+      const data = result.data;
       if (data.featureMetrics) {
         setFeatureMetrics(data.featureMetrics);
       }
@@ -139,19 +148,18 @@ export default function AIFeaturesDashboard() {
       }
 
       // Load features by category
-      const featuresResponse = await fetch('/api/features/metrics');
+      const featuresResult = await safeApiCall('/api/features/metrics');
       
-      if (!featuresResponse.ok) {
-        throw new Error(`HTTP ${featuresResponse.status}: ${featuresResponse.statusText}`);
+      if (featuresResult.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for features:', result.error);
+        return;
       }
       
-      const featuresContentType = featuresResponse.headers.get('content-type');
-      if (!featuresContentType || !featuresContentType.includes('application/json')) {
-        throw new Error('Features response is not JSON format');
+      if (!featuresResult.success) {
+        throw new Error(featuresResult.error || 'Failed to load features');
       }
       
-      const featuresData = await featuresResponse.json();
-      
+      const featuresData = featuresResult.data;
       if (featuresData.featuresByCategory) {
         const allFeatures: AIFeature[] = [];
         Object.values(featuresData.featuresByCategory).forEach((categoryFeatures: any) => {
@@ -169,6 +177,11 @@ export default function AIFeaturesDashboard() {
         enabledFeatures: 0,
         cachedEntries: 0
       });
+      toast({
+        title: "Connection Error",
+        description: "Failed to load dashboard data. Using fallback data.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -178,7 +191,7 @@ export default function AIFeaturesDashboard() {
     try {
       setGenerating(prev => ({ ...prev, [featureId]: true }));
       
-      const response = await fetch('/api/features/generate', {
+      const result = await safeApiCall('/api/features/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -199,30 +212,45 @@ export default function AIFeaturesDashboard() {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for feature generation:', result.error);
+        toast({
+          title: "Generation Failed",
+          description: "Received HTML response - please check authentication",
+          variant: "destructive"
+        });
+        return;
       }
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Response is not JSON format');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate feature');
       }
       
-      const result = await response.json();
-      
-      if (result.success) {
+      const data = result.data;
+      if (data.success) {
         // Refresh metrics after generation
         await loadDashboardData();
         
         // Show success message
-        alert(`Feature ${featureId} generated successfully!`);
+        toast({
+          title: "Feature Generated",
+          description: `Feature ${featureId} generated successfully!`,
+        });
       } else {
-        alert(`Failed to generate feature ${featureId}: ${result.error}`);
+        toast({
+          title: "Generation Failed",
+          description: `Failed to generate feature ${featureId}: ${data.error}`,
+          variant: "destructive"
+        });
       }
 
     } catch (error) {
       console.error('Feature generation failed:', error);
-      alert(`Feature generation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      toast({
+        title: "Generation Failed",
+        description: `Feature generation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        variant: "destructive"
+      });
     } finally {
       setGenerating(prev => ({ ...prev, [featureId]: false }));
     }
@@ -230,33 +258,45 @@ export default function AIFeaturesDashboard() {
 
   const toggleFeature = async (featureId: number, enabled: boolean) => {
     try {
-      const response = await fetch('/api/features/metrics', {
+      const result = await safeApiCall('/api/features/metrics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ featureId, enabled })
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (result.isHtmlResponse) {
+        console.warn('⚠️ HTML response detected for feature toggle:', result.error);
+        toast({
+          title: "Toggle Failed",
+          description: "Received HTML response - please check authentication",
+          variant: "destructive"
+        });
+        return;
       }
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Response is not JSON format');
+      if (!result.success) {
+        throw new Error(result.error || 'Toggle operation failed');
       }
 
-      const result = await response.json();
-      
-      if (result.success) {
+      const data = result.data;
+      if (data.success) {
         setFeatures(prev => prev.map(f =>
           f.id === featureId ? { ...f, enabled } : f
         ));
+        toast({
+          title: "Feature Updated",
+          description: `Feature ${featureId} ${enabled ? 'enabled' : 'disabled'}`,
+        });
       } else {
-        throw new Error(result.error || 'Toggle operation failed');
+        throw new Error(data.error || 'Toggle operation failed');
       }
     } catch (error) {
       console.error('Toggle feature failed:', error);
-      alert(`Failed to toggle feature: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast({
+        title: "Toggle Failed",
+        description: `Failed to toggle feature: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      });
     }
   };
 
