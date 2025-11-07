@@ -441,7 +441,7 @@ BEGIN
       NULLIF(COUNT(*), 0), 2
     ) as accuracy_rate,
     COUNT(*) as questions_attempted,
-    COALESCE(SUM(pm.metric_context->>'duration'::text)::INTEGER, 0) as time_spent_minutes,
+    COALESCE(SUM((pm.metric_context->>'duration')::INTEGER), 0) as time_spent_minutes,
     ROUND((RANDOM() * 20 - 10), 2) as improvement_trend -- Placeholder calculation
   FROM performance_metrics pm
   WHERE pm.user_id = user_uuid 
@@ -514,7 +514,7 @@ GRANT SELECT ON peak_usage_hours TO authenticated;
 
 GRANT EXECUTE ON FUNCTION calculate_user_engagement_score(UUID, INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_study_streak(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION track_feature_usage(VARCHAR, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION track_feature_usage(UUID, VARCHAR, JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_top_performing_subjects(UUID, INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION cleanup_old_analytics_data(INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION is_admin_user(UUID) TO authenticated;
@@ -536,7 +536,7 @@ COMMENT ON VIEW peak_usage_hours IS 'System usage patterns by hour';
 
 COMMENT ON FUNCTION calculate_user_engagement_score(UUID, INTEGER) IS 'Calculate user engagement score based on activity';
 COMMENT ON FUNCTION get_study_streak(UUID) IS 'Calculate consecutive study days streak';
-COMMENT ON FUNCTION track_feature_usage(VARCHAR, JSONB) IS 'Track and update feature usage analytics';
+COMMENT ON FUNCTION track_feature_usage(UUID, VARCHAR, JSONB) IS 'Track and update feature usage analytics';
 COMMENT ON FUNCTION get_top_performing_subjects(UUID, INTEGER) IS 'Get top performing subjects for a user';
 COMMENT ON FUNCTION cleanup_old_analytics_data(INTEGER) IS 'Clean up old analytics data for retention management';
 

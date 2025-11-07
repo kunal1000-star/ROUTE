@@ -150,14 +150,14 @@ CREATE OR REPLACE FUNCTION find_similar_file_analyses(
     p_user_id UUID,
     p_embedding vector(1536),
     p_limit INTEGER DEFAULT 5,
-    p_min_similarity FLOAT DEFAULT 0.7
+    p_min_similarity double precision DEFAULT 0.7
 ) RETURNS TABLE (
     id UUID,
     file_name TEXT,
     summary TEXT,
     subject TEXT,
     difficulty_level TEXT,
-    similarity FLOAT
+    similarity double precision
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -182,7 +182,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT ALL ON file_analyses TO authenticated;
 GRANT ALL ON file_uploads TO authenticated;
 GRANT ALL ON analysis_study_plan_links TO authenticated;
-GRANT EXECUTE ON FUNCTION find_similar_file_analyses(UUID, vector, INTEGER, FLOAT) TO authenticated;
+GRANT EXECUTE ON FUNCTION find_similar_file_analyses(UUID, vector, INTEGER, double precision) TO authenticated;
 
 -- Comments for documentation
 COMMENT ON TABLE file_analyses IS 'Stores analysis results of uploaded files with vector embeddings for semantic search';
