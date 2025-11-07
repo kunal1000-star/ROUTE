@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, Clock, Zap, Globe, AlertCircle } from 'lucide-react';
+import RichContent from './RichContent';
 
 interface ChatMessageProps {
   message: GeneralChatMessage;
@@ -150,7 +151,8 @@ export function ChatMessage({ message, isLatest }: ChatMessageProps) {
             ) : message.isError ? (
               <ErrorMessage />
             ) : (
-              <p>{message.content}</p>
+              <RichContent text={message.content} isStreaming={message.streaming}
+              />
             )}
           </div>
         </Card>

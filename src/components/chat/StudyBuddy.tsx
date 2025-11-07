@@ -27,7 +27,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { exponentialBackoffRetry } from '@/lib/utils/retry';
+import StreamControls from '@/components/ui/stream-controls';
 import { AIFeaturesEngine } from '@/lib/ai/ai-features-engine';
+import AlertBanner from '@/components/ui/alert-banner';
+import RichContent from '@/components/chat/RichContent';
+import { motion } from 'framer-motion';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ChatMessage {
   id: string;
@@ -76,11 +82,18 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
   const [inputMessage, setInputMessage] = useState('');
   const [isPersonalQuery, setIsPersonalQuery] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [showJump, setShowJump] = useState(false);
+  const [streamCompleted, setStreamCompleted] = useState(false);
+  const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aiFeaturesActive, setAiFeaturesActive] = useState(false);
   const [aiFeaturesData, setAiFeaturesData] = useState<any>(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<{visible:boolean; message:string; lastPrompt?:string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -88,12 +101,24 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
   useEffect(() => {
     loadStudentProfile();
     loadMemoryReferences();
+
+    // Auto-retry when back online if there is a stored last prompt
+    const onOnline = () => {
+      if (errorBanner?.visible && errorBanner.lastPrompt) {
+        setInputMessage(errorBanner.lastPrompt);
+        setErrorBanner(null);
+        setTimeout(() => sendMessage(), 0);
+      }
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
   }, [userId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (autoScroll) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    else setShowJump(true);
+  }, [messages, autoScroll]);
 
   const loadStudentProfile = async () => {
     try {
@@ -169,70 +194,64 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      const response = await fetch('/api/chat/study-assistant/send', {
+      const controller = new AbortController();
+      streamAbortRef.current = controller;
+      setIsStreaming(true);
+      setStreamCompleted(false);
+      const res = await exponentialBackoffRetry(() => fetch('/api/chat/study-assistant/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          conversationId: currentConversation?.id,
-          message: messageText,
-          chatType: 'study_assistant',
-          isPersonalQuery
-        })
-      });
+        body: JSON.stringify({ message: messageText, userId, isPersonalQuery, conversationId: currentConversation?.id }),
+        signal: controller.signal,
+      }), { retries: 2, baseDelayMs: 400, maxDelayMs: 2000, jitter: true, signal: controller.signal });
 
-      if (!response.ok) {
-        throw new Error('Failed to send message');
+      if (!res.body) throw new Error('Failed to open stream');
+
+      const aiMsgId = `ai-${Date.now()}`;
+      setCurrentStreamingMessageId(aiMsgId);
+      setMessages(prev => [...prev, { id: aiMsgId, role: 'assistant', content: '', timestamp: new Date().toISOString() }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const append = (chunk: string) => {
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: m.content + chunk } : m));
+      };
+      let ended = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          try {
+            const evt = JSON.parse(payload);
+            if (evt.type === 'content' && typeof evt.data === 'string') append(evt.data);
+            if (evt.type === 'end') { ended = true; }
+            if (evt.type === 'error') throw new Error(evt.error?.message || 'Stream error');
+          } catch {}
+        }
       }
 
-      const data = await response.json();
-      const aiResponse = data.response;
+      setIsStreaming(false);
+      setStreamCompleted(true);
+      setCurrentStreamingMessageId(null);
+      // Persist via existing endpoint best-effort
+      exponentialBackoffRetry(() => fetch('/api/chat/study-assistant/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, conversationId: currentConversation?.id, message: messageText, chatType: 'study_assistant', isPersonalQuery })
+      }), { retries: 2, baseDelayMs: 500, maxDelayMs: 2500 }).catch(() => {});
 
-      // Remove temporary user message and add real ones
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== userMessage.id);
-        return [
-          ...filtered,
-          {
-            id: `user-${Date.now()}`,
-            role: 'user',
-            content: messageText,
-            timestamp: new Date().toISOString()
-          },
-          {
-            id: `ai-${Date.now()}`,
-            role: 'assistant',
-            content: aiResponse.content,
-            timestamp: new Date().toISOString(),
-            model_used: aiResponse.model_used,
-            provider_used: aiResponse.provider,
-            tokens_used: aiResponse.tokens_used.input + aiResponse.tokens_used.output,
-            latency_ms: aiResponse.latency_ms,
-            cached: aiResponse.cached,
-            web_search_enabled: aiResponse.web_search_enabled
-          }
-        ];
-      });
-
-      // Update memory references if available
-      if (data.memoryReferences && data.memoryReferences.length > 0) {
-        setMemoryReferences(prev => [...data.memoryReferences, ...prev]);
-      }
-
-      // Update conversation if it's new
-      if (data.conversationId && !currentConversation) {
-        const newConversation = {
-          id: data.conversationId,
-          title: messageText.length > 50 ? messageText.substring(0, 47) + '...' : messageText,
-          chat_type: 'study_assistant',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        setCurrentConversation(newConversation);
-      }
+      setErrorBanner(null);
     } catch (error) {
       console.error('Failed to send message:', error);
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      setErrorBanner({ visible: true, message: (error instanceof Error ? error.message : 'Failed to get response'), lastPrompt: messageText });
       
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
@@ -243,6 +262,9 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      streamAbortRef.current = null;
+      setCurrentStreamingMessageId(null);
     }
   };
 
@@ -492,6 +514,21 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
         <div className="border-b p-4">
+          {errorBanner?.visible && (
+            <div className="mb-3">
+              <AlertBanner
+                message={errorBanner.message}
+                onRetry={() => {
+                  if (errorBanner.lastPrompt) {
+                    setInputMessage(errorBanner.lastPrompt);
+                    setErrorBanner(null);
+                    setTimeout(() => sendMessage(), 0);
+                  }
+                }}
+                onDismiss={() => setErrorBanner(null)}
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold flex items-center gap-2">
@@ -503,6 +540,12 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <StreamControls
+                  streaming={isStreaming}
+                  completed={streamCompleted}
+                  onStopKeep={() => { streamAbortRef.current?.abort(); setIsStreaming(false); }}
+                  onStopClear={() => { streamAbortRef.current?.abort(); setIsStreaming(false); if (currentStreamingMessageId) setMessages(prev=>prev.filter(m=>m.id!==currentStreamingMessageId)); }}
+                />
               <Button
                 variant="outline"
                 size="sm"
@@ -668,7 +711,7 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4" role="log" aria-live="polite" aria-relevant="additions text">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Brain className="h-16 w-16 text-muted-foreground mb-4" />
@@ -718,9 +761,13 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((message) => (
-                <div
+              {messages.map((message, idx) => { const prev = messages[idx - 1]; const next = messages[idx + 1]; const isFirstInGroup = !prev || prev.role !== message.role; const isLastInGroup = !next || next.role !== message.role; return (
+                <motion.div
                   key={message.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
                   className={`
                     flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}
                   `}
@@ -732,9 +779,14 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
                         ? 'bg-primary text-primary-foreground ml-4'
                         : 'bg-muted mr-4'
                       }
+                      ${!isFirstInGroup ? 'mt-1' : ''} ${!isLastInGroup ? 'mb-1' : ''}
                     `}
+                    role="article"
+                    aria-roledescription="chat message"
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <div className="text-sm">
+                        <RichContent text={message.content} />
+                      </div>
                     
                     {/* Message metadata for AI responses */}
                     {message.role === 'assistant' && (
@@ -764,12 +816,30 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
                       </div>
                     )}
                     
+                    {/* Actions: copy/regenerate for AI */}
+                    {message.role === 'assistant' && (
+                      <div className="flex items-center gap-1 mt-2 opacity-70">
+                        <Button variant="ghost" size="sm" className="h-6 px-2" onClick={async () => { try { await navigator.clipboard.writeText(message.content); } catch {} }}>
+                          Copy
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => {
+                          const prevUser = [...messages].slice(0, idx).reverse().find(m => m.role === 'user');
+                          if (prevUser) {
+                            setInputMessage(prevUser.content);
+                            setTimeout(() => { sendMessage(); }, 0);
+                          }
+                        }}>
+                          Regenerate
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="text-xs opacity-70 mt-1">
-                      {formatTime(message.timestamp)}
+                      {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
                     </div>
                   </div>
-                </div>
-              ))}
+                </motion.div>
+              ); })}
               
               {/* Loading indicator */}
               {isLoading && (
@@ -827,6 +897,13 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
               <MessageCircle className="h-4 w-4" />
             </Button>
           </div>
+          {showJump && isStreaming && !autoScroll && (
+            <div className="flex justify-center mt-2">
+              <Button size="sm" variant="secondary" onClick={() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }); setShowJump(false); }}>
+                Jump to latest
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
             <span>
               {isPersonalQuery 

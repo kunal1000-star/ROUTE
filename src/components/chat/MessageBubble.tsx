@@ -2,20 +2,26 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
+import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Check, ThumbsUp, ThumbsDown, RefreshCw, User, Bot, Settings2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ChatMessage } from '@/app/(app)/chat/page';
 import { cn } from '@/lib/utils';
+import RichContent from './RichContent';
 
 interface MessageBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
   className?: string;
+  showHeader?: boolean;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
+  onRegenerate?: (message: ChatMessage) => void;
 }
 
-export default function MessageBubble({ message, isStreaming = false, className }: MessageBubbleProps) {
+export default function MessageBubble({ message, isStreaming = false, className, showHeader = true, isFirstInGroup = true, isLastInGroup = true, onRegenerate }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -68,12 +74,13 @@ export default function MessageBubble({ message, isStreaming = false, className 
     });
   };
 
-  // Format timestamp
+  // Format timestamp (relative)
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
+    try {
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch {
+      return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(date);
+    }
   };
 
   // Get role icon
@@ -135,11 +142,12 @@ export default function MessageBubble({ message, isStreaming = false, className 
       {/* Message Content */}
       <div className={cn('flex flex-col gap-1', message.role === 'user' ? 'items-end' : 'items-start')}>
         {/* Header */}
-        <div className={cn(
-          'flex items-center gap-2 text-xs px-3 py-1 rounded-lg',
-          roleStyling.header,
-          message.role === 'system' && 'bg-background/50'
-        )}>
+        {showHeader && (
+          <div className={cn(
+            'flex items-center gap-2 text-xs px-3 py-1 rounded-lg',
+            roleStyling.header,
+            message.role === 'system' && 'bg-background/50'
+          )}>
           <span className="font-medium">
             {message.role === 'user' ? 'You' : 
              message.role === 'assistant' ? 'AI Assistant' : 'System'}
@@ -176,20 +184,19 @@ export default function MessageBubble({ message, isStreaming = false, className 
             </>
           )}
         </div>
+       )}
 
         {/* Message Bubble */}
         <Card className={cn(
           'p-4 relative group-hover:shadow-sm transition-shadow',
-          roleStyling.container
+          roleStyling.container,
+          !isFirstInGroup && 'mt-1',
+          !isLastInGroup && 'mb-1'
         )}>
           {/* Message Content */}
-          <div 
-            ref={contentRef}
-            className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words"
-            dangerouslySetInnerHTML={{ 
-              __html: message.content.replace(/\n/g, '<br />') 
-            }}
-          />
+          <div ref={contentRef} className="prose prose-sm dark:prose-invert max-w-none break-words">
+            <RichContent text={message.content} isStreaming={isStreaming} />
+          </div>
 
           {/* Streaming indicator */}
           {isStreaming && (
@@ -219,7 +226,7 @@ export default function MessageBubble({ message, isStreaming = false, className 
               {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             </Button>
 
-            {/* Feedback Buttons */}
+            {/* Feedback + Regenerate Buttons */}
             {message.role === 'assistant' && (
               <>
                 <Button
@@ -245,6 +252,18 @@ export default function MessageBubble({ message, isStreaming = false, className 
                 >
                   <ThumbsDown className="h-3 w-3" />
                 </Button>
+
+                {onRegenerate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => onRegenerate(message)}
+                    title="Regenerate response"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                )}
               </>
             )}
 

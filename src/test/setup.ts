@@ -7,6 +7,69 @@ import { vi } from 'vitest';
 // Mock environment variables for testing
 process.env.TESTING = 'true';
 
+// Lightweight test mocks for external systems
+import { vi } from 'vitest';
+
+// Robust Supabase mock with per-table builder and chainable methods
+vi.mock('@/lib/supabase', () => {
+  const makeBuilder = (table: string) => {
+    const state: any = { table, filters: [], data: [], lastInsert: null };
+    const builder: any = {
+      insert: vi.fn().mockImplementation((values: any) => {
+        state.lastInsert = values;
+        return builder;
+      }),
+      update: vi.fn().mockImplementation((_values: any) => builder),
+      delete: vi.fn().mockImplementation(() => builder),
+      select: vi.fn().mockImplementation((_columns?: string) => builder),
+      eq: vi.fn().mockImplementation((_col: string, _val: any) => builder),
+      order: vi.fn().mockImplementation((_col: string, _opts?: any) => builder),
+      limit: vi.fn().mockImplementation((_n: number) => builder),
+      single: vi.fn().mockResolvedValue({ data: state.lastInsert || {}, error: null }),
+    };
+    return builder;
+  };
+  const from = vi.fn().mockImplementation((table: string) => makeBuilder(table));
+  const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+  const supabase = { from, rpc } as any;
+  const supabaseBrowserClient = supabase;
+  const getCurrentUser = vi.fn().mockResolvedValue({ id: 'test-user', email: 'test@example.com' });
+  return { supabase, supabaseBrowserClient, getCurrentUser };
+});
+
+// Unified Embedding Service mock matching real shape
+vi.mock('@/lib/ai/unified-embedding-service', () => {
+  class UnifiedEmbeddingServiceMock {
+    private dims = 1536;
+    async generateEmbeddings(input: any) {
+      const texts: string[] = Array.isArray(input) ? input : (input?.texts || []);
+      const embeddings = texts.map(() => Array(this.dims).fill(0.01));
+      return { embeddings, provider: 'mock', model: 'mock-embed', dimensions: this.dims };
+    }
+    getUsageStatistics() { return { totalCalls: 0, cacheHits: 0, providers: {} }; }
+  }
+  const unifiedEmbeddingService = new UnifiedEmbeddingServiceMock();
+  return { UnifiedEmbeddingService: UnifiedEmbeddingServiceMock, unifiedEmbeddingService };
+});
+
+// Mock activity logger and daily summary modules expected in tests
+vi.mock('@/lib/ai/activity-logger', () => {
+  const activityLogger = {
+    async logActivity(_entry: any) { return { success: true, id: 'log-1' }; },
+    async getRecentActivities(_userId: string, _limit: number) { return []; },
+  };
+  return { activityLogger };
+});
+
+vi.mock('@/lib/ai/daily-summary', () => {
+  const dailySummary = {
+    async generateDailySummary(_userId: string, _date: Date) {
+      return { id: 1, user_id: _userId, summary_date: _date.toISOString().split('T')[0], metrics: {}, created_at: new Date().toISOString() } as any;
+    },
+  };
+  return { dailySummary };
+});
+
 // Mock global objects that might not exist in test environment
 if (typeof global.fetch === 'undefined') {
   global.fetch = vi.fn();

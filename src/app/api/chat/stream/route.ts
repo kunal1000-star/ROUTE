@@ -2,6 +2,7 @@
 // ======================================================
 
 import { NextRequest } from 'next/server';
+import { getInitializedChatService } from '@/lib/ai/chat';
 import type { AIProvider } from '@/types/api-test';
 
 // Simple request interface
@@ -36,7 +37,7 @@ async function getChatServiceSafely() {
   }
 }
 
-// Mock streaming response for fallback
+// Remove mock; will use real streaming
 function createMockStreamingResponse(message: string, sessionId?: string) {
   return {
     id: `mock-stream-${Date.now()}`,
@@ -93,14 +94,17 @@ export async function POST(request: NextRequest) {
         streamResponses: true, // Enable streaming
       },
       provider: body.provider as AIProvider,
-      sessionId: body.sessionId,
+      sessionId: body.conversationId || body.sessionId,
       stream: true,
     };
 
-    // Create readable stream
+    // Create readable stream from unified chat service
     const readable = new ReadableStream({
       async start(controller) {
+        const abort = request.signal;
         try {
+          const { chatService } = await getInitializedChatService();
+
           // Send initial metadata
           const initialChunk = {
             type: 'start',
@@ -111,61 +115,45 @@ export async function POST(request: NextRequest) {
               serviceInitialized: initialized,
             }
           };
-          
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`));
-          
-          // Simulate streaming response
-          const mockResponse = createMockStreamingResponse(body.message, body.sessionId);
-          
-          // Send content in chunks
-          const chunks = mockResponse.content.split(' ');
-          for (let i = 0; i < chunks.length; i++) {
-            const chunkData = {
-              type: 'content',
-              data: chunks[i] + ' ',
-              timestamp: new Date().toISOString(),
-              id: `chunk-${i}`,
-            };
-            
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunkData)}\n\n`));
-            
-            // Small delay to simulate streaming
-            if (i < chunks.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 50));
+
+          const stream = chatService.streamMessage({
+            message: chatRequest.message,
+            context: chatRequest.context,
+            preferences: { ...chatRequest.preferences, streamResponses: true },
+            provider: chatRequest.provider,
+            sessionId: chatRequest.sessionId,
+          });
+
+          for await (const chunk of stream as any) {
+            if (abort.aborted) break;
+            if (chunk.type === 'content') {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk.data })}\n\n`));
+            } else if (chunk.type === 'metadata') {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: chunk.data })}\n\n`));
+            } else if (chunk.type === 'error') {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: chunk.data })}\n\n`));
             }
           }
-          
-          // Send completion signal
-          const endChunk = {
-            type: 'end',
-            data: {
-              message: 'Stream completed successfully',
-              timestamp: new Date().toISOString(),
-              totalTokens: mockResponse.tokensUsed,
-            }
-          };
-          
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(endChunk)}\n\n`));
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'end', data: { timestamp: new Date().toISOString() } })}\n\n`));
           controller.close();
-          
         } catch (error) {
-          console.error('Streaming error:', error);
-          
-          // Send error chunk
           const errorChunk = {
             type: 'error',
             error: {
               code: 'STREAMING_ERROR',
               message: error instanceof Error ? error.message : 'Streaming failed',
-              details: error instanceof Error ? error.stack : String(error),
             },
             timestamp: new Date().toISOString(),
           };
-          
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
           controller.close();
         }
       },
+      cancel() {
+        // nothing special; relying on request.signal
+      }
     });
 
     return new Response(readable, {

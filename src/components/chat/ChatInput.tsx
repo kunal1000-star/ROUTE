@@ -163,7 +163,7 @@ export default function ChatInput({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="form" aria-label="Chat input">
       {/* Attachments Preview */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -214,6 +214,7 @@ export default function ChatInput({
             variant="ghost"
             size="icon"
             onClick={handleFileUpload}
+            aria-label="Attach files"
             disabled={disabled || isRecording}
             className="flex-shrink-0"
           >
@@ -223,6 +224,10 @@ export default function ChatInput({
           {/* Text Input */}
           <div className="flex-1 relative">
             <Textarea
+              aria-label="Message input"
+              aria-multiline="true"
+              aria-invalid={message.length >= maxLength}
+              
               ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -260,6 +265,7 @@ export default function ChatInput({
           {/* Send Button */}
           <Button
             onClick={handleSendMessage}
+            aria-label="Send message"
             disabled={disabled || (!message.trim() && attachments.length === 0)}
             size="icon"
             className="flex-shrink-0"

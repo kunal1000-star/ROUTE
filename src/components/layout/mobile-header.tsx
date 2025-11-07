@@ -3,6 +3,7 @@
 
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { BrainCircuit, LogOut, Settings } from 'lucide-react';
+import ThemeToggle from '@/components/ui/theme-toggle';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useEffect, useState } from 'react';
@@ -55,6 +56,9 @@ export default function MobileHeader() {
         </Link>
       </div>
 
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+
       {user && (
          <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -94,6 +98,7 @@ export default function MobileHeader() {
             </DropdownMenuContent>
         </DropdownMenu>
       )}
+      </div>
     </header>
   );
 }

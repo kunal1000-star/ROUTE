@@ -2,6 +2,7 @@
 // ===========================
 
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { BookOpen, Target, Lightbulb, HelpCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -173,25 +174,39 @@ export function StudyBuddyChat({
           )}
 
           {/* Messages */}
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <div key={message.id}>
-                <MessageBubble
-                  message={message}
-                  isStreaming={message.streaming || false}
-                />
-                
-                {/* Memory References Display */}
-                {message.role === 'assistant' && message.memory_references && message.memory_references.length > 0 && (
-                  <MemoryReferences memoryReferences={message.memory_references} />
-                )}
-              </div>
-            ))}
+          <div className="space-y-4" role="log" aria-live="polite" aria-relevant="additions text">
+            {messages.map((message, idx) => {
+              const prev = messages[idx - 1];
+              const next = messages[idx + 1];
+              const isFirstInGroup = !prev || prev.role !== message.role;
+              const isLastInGroup = !next || next.role !== message.role;
+              const showHeader = isFirstInGroup;
+              return (
+                <motion.div key={message.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <MessageBubble
+                    message={message}
+                    isStreaming={message.streaming || false}
+                    showHeader={showHeader}
+                    isFirstInGroup={isFirstInGroup}
+                    isLastInGroup={isLastInGroup}
+                    onRegenerate={() => {
+                      const prevUser = [...messages].slice(0, idx).reverse().find(m => m.role === 'user');
+                      if (prevUser) {
+                        onSendMessage(prevUser.content);
+                      }
+                    }}
+                  />
+                  {message.role === 'assistant' && message.memory_references && message.memory_references.length > 0 && (
+                    <MemoryReferences memoryReferences={message.memory_references} />
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Enhanced Loading Indicator */}
           {isLoading && (
-            <div className="flex justify-start">
+            <div className="flex justify-start" role="status" aria-live="polite">
               <Card className="p-4 bg-blue-50 border-blue-200">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">

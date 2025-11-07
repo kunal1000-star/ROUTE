@@ -1,4 +1,5 @@
 // Settings Panel React Component - Phase 3 Implementation
+// Theme toggle added
 // Complete 5-tab settings interface with AI model selection, features, notifications, privacy, and usage monitoring
 
 'use client';
@@ -51,6 +52,8 @@ interface SettingsPanelProps {
   userId: string;
   onClose?: () => void;
 }
+
+import ThemeToggle from '@/components/ui/theme-toggle';
 
 export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
   const { toast } = useToast();
@@ -350,6 +353,15 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
               <CardDescription>
                 Customize your AI study assistant preferences and monitor usage
               </CardDescription>
+              <div className="mt-3">
+                <div className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <div className="font-medium">Theme</div>
+                    <div className="text-sm text-muted-foreground">Toggle between light and dark mode</div>
+                  </div>
+                  <ThemeToggle />
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {hasUnsavedChanges && (

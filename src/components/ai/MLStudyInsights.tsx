@@ -73,7 +73,9 @@ interface StudyRecommendation {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
-export default function MLStudyInsights() {
+interface MLStudyInsightsProps { runSignal?: number }
+
+export default function MLStudyInsights({ runSignal }: MLStudyInsightsProps) {
   const [studyPatterns, setStudyPatterns] = useState<StudyPattern[]>([]);
   const [insights, setInsights] = useState<LearningInsight[]>([]);
   const [predictions, setPredictions] = useState<PredictiveAnalysis | null>(null);
@@ -86,6 +88,12 @@ export default function MLStudyInsights() {
     initializeMockData();
     performAnalysis();
   }, []);
+
+  // Re-run analysis when parent triggers a run signal
+  useEffect(() => {
+    if (typeof runSignal !== 'number') return;
+    performAnalysis();
+  }, [runSignal]);
 
   const initializeMockData = () => {
     const mockPatterns: StudyPattern[] = [

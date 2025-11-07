@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "next-env.d.ts",
+    "src/lib/ai/**/*.ts",
+    "src/lib/ai/**/*.tsx",
+    "src/components/chat/**/*.ts",
+    "src/components/chat/**/*.tsx",
+    "src/test/**/*.ts",
+    "src/test/**/*.tsx",
+    "src/lib/supabase.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/app/**",
+    "src/components/**",
+    "!src/components/chat/**",
+    "src/app.api/**",
+    "src/app/**"
+  ]
+}

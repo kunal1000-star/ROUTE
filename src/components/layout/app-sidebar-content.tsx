@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
+import ThemeToggle from '@/components/ui/theme-toggle';
 import { useState, useEffect } from 'react';
 import { getCurrentUser, supabaseBrowserClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -103,6 +104,9 @@ export default function AppSidebarContent() {
           <Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={() => setOpenMobile(false)}>
             <X className="h-5 w-5" />
           </Button>
+        <div className="flex items-center gap-2">
+            <ThemeToggle />
+          </div>
         </div>
       </SidebarHeader>
       

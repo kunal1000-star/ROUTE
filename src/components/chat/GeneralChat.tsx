@@ -13,7 +13,14 @@ import { safeApiCall } from '@/lib/utils/safe-api';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import RichContent from '@/components/chat/RichContent';
+import { motion, AnimatePresence } from 'framer-motion';
+import ThemeToggle from '@/components/ui/theme-toggle';
+import { exponentialBackoffRetry } from '@/lib/utils/retry';
+import StreamControls from '@/components/ui/stream-controls';
+import AlertBanner from '@/components/ui/alert-banner';
 import { AIFeaturesEngine } from '@/lib/ai/ai-features-engine';
+import { formatDistanceToNow } from 'date-fns';
 import {
   BarChart3,
   Target,
@@ -63,6 +70,13 @@ export default function GeneralChat({ className }: GeneralChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [showJump, setShowJump] = useState(false);
+  const [streamCompleted, setStreamCompleted] = useState(false);
+  const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const [errorBanner, setErrorBanner] = useState<{visible:boolean; message:string; lastPrompt?:string} | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -91,6 +105,29 @@ export default function GeneralChat({ className }: GeneralChatProps) {
       }
     };
     initializeUser();
+
+    // Auto-retry when back online if there is a stored last prompt
+    const onOnline = () => {
+      if (errorBanner?.visible && errorBanner.lastPrompt) {
+        setInputMessage(errorBanner.lastPrompt);
+        setErrorBanner(null);
+        setTimeout(() => sendMessage(), 0);
+      }
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
+
+  // Ctrl/Cmd+K to focus input
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // Load conversations when user is authenticated
@@ -102,8 +139,9 @@ export default function GeneralChat({ className }: GeneralChatProps) {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (autoScroll) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    else setShowJump(true);
+  }, [messages, autoScroll]);
 
   const loadConversations = async () => {
     if (!userId) return;
@@ -226,79 +264,66 @@ export default function GeneralChat({ className }: GeneralChatProps) {
     try {
       console.log('💬 Sending message in General Chat...');
       
-      const result = await safeApiCall('/api/chat/general/send', {
+      // Start streaming from SSE-like endpoint (POST streaming)
+      const controller = new AbortController();
+      streamAbortRef.current = controller;
+      setIsStreaming(true);
+      setStreamCompleted(false);
+      const res = await exponentialBackoffRetry(() => fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          conversationId: currentConversation?.id,
-          message: messageText,
-          chatType: 'general'
-        })
-      });
+        body: JSON.stringify({ message: messageText, conversationId: currentConversation?.id }),
+        signal: controller.signal,
+      }), { retries: 2, baseDelayMs: 400, maxDelayMs: 2000, jitter: true, signal: controller.signal });
+      if (!res.body) throw new Error('No stream body');
 
-      if (!result.success) {
-        console.log('⚠️ API response failed:', result.error);
-        // Graceful handling - remove user message and add error message
-        setMessages(prev => prev.filter(m => m.id !== userMessage.id));
-        
-        const errorMessage: ChatMessage = {
-          id: `error-${Date.now()}`,
-          role: 'assistant',
-          content: 'Sorry, I\'m having trouble responding right now. Please try again.',
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-        return;
+      // Create assistant placeholder
+      const aiMsgId = `ai-${Date.now()}`;
+      setCurrentStreamingMessageId(aiMsgId);
+      setMessages(prev => [...prev, { id: aiMsgId, role: 'assistant', content: '', timestamp: new Date().toISOString() }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const append = (chunk: string) => {
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: m.content + chunk } : m));
+      };
+      let ended = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          try {
+            const evt = JSON.parse(payload);
+            if (evt.type === 'content' && typeof evt.data === 'string') append(evt.data);
+            if (evt.type === 'end') { ended = true; }
+            if (evt.type === 'error') throw new Error(evt.error?.message || 'Stream error');
+          } catch {}
+        }
       }
 
-      const data = result.data;
-      const aiResponse = data.response;
+      setIsStreaming(false);
+      setStreamCompleted(true);
+      setCurrentStreamingMessageId(null);
+      // After stream finishes, persist via normal API (best-effort)
+      exponentialBackoffRetry(() => safeApiCall('/api/chat/general/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, conversationId: currentConversation?.id, message: messageText, chatType: 'general' })
+      }), { retries: 2, baseDelayMs: 500, maxDelayMs: 2500 }).catch(() => {/* ignore */});
 
-      console.log('✅ Got successful response from General Chat API');
-
-      // Remove temporary user message and add real ones
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== userMessage.id);
-        return [
-          ...filtered,
-          {
-            id: `user-${Date.now()}`,
-            role: 'user',
-            content: messageText,
-            timestamp: new Date().toISOString()
-          },
-          {
-            id: `ai-${Date.now()}`,
-            role: 'assistant',
-            content: aiResponse.content,
-            timestamp: new Date().toISOString(),
-            model_used: aiResponse.model_used,
-            provider_used: aiResponse.provider,
-            tokens_used: aiResponse.tokens_used?.input + aiResponse.tokens_used?.output,
-            latency_ms: aiResponse.latency_ms,
-            cached: aiResponse.cached,
-            web_search_enabled: aiResponse.web_search_enabled
-          }
-        ];
-      });
-
-      // Update conversation if it's new
-      if (data.conversationId && !currentConversation) {
-        const newConversation: ChatConversation = {
-          id: data.conversationId,
-          title: messageText.length > 50 ? messageText.substring(0, 47) + '...' : messageText,
-          chat_type: 'general',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        setCurrentConversation(newConversation);
-        setConversations(prev => [newConversation, ...prev]);
-      }
+      setErrorBanner(null);
     } catch (error) {
       console.error('❌ Error in sendMessage:', error);
       // Remove the user message if sending failed
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      setErrorBanner({ visible: true, message: (error instanceof Error ? error.message : 'Failed to get response'), lastPrompt: messageText });
       
       // Add error message
       const errorMessage: ChatMessage = {
@@ -310,6 +335,9 @@ export default function GeneralChat({ className }: GeneralChatProps) {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      streamAbortRef.current = null;
+      setCurrentStreamingMessageId(null);
     }
   };
 
@@ -509,6 +537,30 @@ export default function GeneralChat({ className }: GeneralChatProps) {
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
         <div className="border-b p-4">
+          {errorBanner?.visible && (
+            <div className="mb-3">
+              <AlertBanner
+                message={errorBanner.message}
+                onRetry={() => {
+                  if (errorBanner.lastPrompt) {
+                    setInputMessage(errorBanner.lastPrompt);
+                    setErrorBanner(null);
+                    setTimeout(() => sendMessage(), 0);
+                  }
+                }}
+                onDismiss={() => setErrorBanner(null)}
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-2 justify-end">
+            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" checked={autoScroll} onChange={(e)=>setAutoScroll(e.target.checked)} />
+                Auto-scroll
+              </label>
+            </div>
+            <ThemeToggle />
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold">
@@ -519,6 +571,12 @@ export default function GeneralChat({ className }: GeneralChatProps) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <StreamControls
+                streaming={isStreaming}
+                completed={streamCompleted}
+                onStopKeep={() => { streamAbortRef.current?.abort(); setIsStreaming(false); }}
+                onStopClear={() => { streamAbortRef.current?.abort(); setIsStreaming(false); if (currentStreamingMessageId) setMessages(prev=>prev.filter(m=>m.id!==currentStreamingMessageId)); }}
+              />
               <Button
                 variant="outline"
                 size="sm"
@@ -676,7 +734,7 @@ export default function GeneralChat({ className }: GeneralChatProps) {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4" role="log" aria-live="polite" aria-relevant="additions text">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <MessageCircle className="h-16 w-16 text-muted-foreground mb-4" />
@@ -704,63 +762,92 @@ export default function GeneralChat({ className }: GeneralChatProps) {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`
-                    flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}
-                  `}
-                >
-                  <div
-                    className={`
-                      max-w-[80%] sm:max-w-[70%] rounded-lg p-3
-                      ${message.role === 'user'
-                        ? 'bg-primary text-primary-foreground ml-4'
-                        : 'bg-muted mr-4'
-                      }
-                    `}
+            <div className="space-y-4" role="log" aria-live="polite" aria-relevant="additions text">
+              {messages.map((message, idx) => {
+                const prev = messages[idx - 1];
+                const next = messages[idx + 1];
+                const isFirstInGroup = !prev || prev.role !== message.role;
+                const isLastInGroup = !next || next.role !== message.role;
+                return (
+                  <motion.div
+                    key={message.id}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    
-                    {/* Message metadata for AI responses */}
-                    {message.role === 'assistant' && (
-                      <div className="mt-2 pt-2 border-t border-border/20">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          {message.model_used && (
-                            <span>Powered by {message.model_used}</span>
-                          )}
-                          {message.latency_ms && (
-                            <span>• {message.latency_ms}ms</span>
-                          )}
-                          {message.tokens_used && (
-                            <span>• {message.tokens_used} tokens</span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
-                          {message.cached && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Clock className="h-3 w-3 mr-1" />
-                              From cache
-                            </Badge>
-                          )}
-                          {message.web_search_enabled && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Search className="h-3 w-3 mr-1" />
-                              Live search
-                            </Badge>
-                          )}
-                        </div>
+                    <div
+                      className={`
+                        max-w-[80%] sm:max-w-[70%] rounded-lg p-3
+                        ${message.role === 'user' ? 'bg-primary text-primary-foreground ml-4' : 'bg-muted mr-4'}
+                      `}
+                      role="article"
+                      aria-roledescription="chat message"
+                    >
+                      <div className="text-sm">
+                        <RichContent text={message.content} />
                       </div>
-                    )}
-                    
-                    <div className="text-xs opacity-70 mt-1">
-                      {formatTime(message.timestamp)}
+
+                      {message.role === 'assistant' && (
+                        <div className="mt-2 pt-2 border-t border-border/20">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            {message.model_used && <span>Powered by {message.model_used}</span>}
+                            {message.latency_ms && <span>• {message.latency_ms}ms</span>}
+                            {message.tokens_used && <span>• {message.tokens_used} tokens</span>}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            {message.cached && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Clock className="h-3 w-3 mr-1" />
+                                From cache
+                              </Badge>
+                            )}
+                            {message.web_search_enabled && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Search className="h-3 w-3 mr-1" />
+                                Live search
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {message.role === 'assistant' && (
+                        <div className="flex items-center gap-1 mt-2 opacity-70">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={async () => { try { await navigator.clipboard.writeText(message.content); } catch {} }}
+                          >
+                            Copy
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => {
+                              const prevUser = [...messages].slice(0, idx).reverse().find(m => m.role === 'user');
+                              if (prevUser) {
+                                setInputMessage(prevUser.content);
+                                setTimeout(() => { sendMessage(); }, 0);
+                              }
+                            }}
+                          >
+                            Regenerate
+                          </Button>
+                        </div>
+                      )}
+
+                      <div className="text-xs opacity-70 mt-1">
+                        {formatDistanceToNow(new Date(message.timestamp), { addSuffix: true })}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-              
+                  </motion.div>
+                );
+              })}
+
               {/* Loading indicator */}
               {isLoading && (
                 <div className="flex justify-start">
@@ -803,6 +890,13 @@ export default function GeneralChat({ className }: GeneralChatProps) {
               <Send className="h-4 w-4" />
             </Button>
           </div>
+          {showJump && isStreaming && !autoScroll && (
+            <div className="flex justify-center mt-2">
+              <Button size="sm" variant="secondary" onClick={() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }); setShowJump(false); }}>
+                Jump to latest
+              </Button>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
             <span>Press Enter to send, Shift+Enter for new line</span>
             <span>{inputMessage.length}/500</span>
