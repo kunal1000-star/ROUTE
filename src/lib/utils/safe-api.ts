@@ -236,7 +236,19 @@ export async function safeApiCall(url: string, options?: RequestInit & { require
       };
     }
 
-    // Parse JSON response
+    // Parse JSON response safely
+    const ct = response.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const raw = await response.text();
+      console.warn('⚠️ Expected JSON but received non-JSON response from:', url);
+      const isHtml = raw.trim().startsWith('<!DOCTYPE') || raw.trim().startsWith('<html');
+      return {
+        success: false,
+        isHtmlResponse: isHtml,
+        error: isHtml ? 'Received HTML response instead of JSON (possible auth or server error)'
+                      : 'Received non-JSON response',
+      } as any;
+    }
     const data = await response.json();
     console.log('✅ API call successful:', url);
     return { success: true, data };

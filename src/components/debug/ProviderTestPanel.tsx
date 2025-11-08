@@ -25,6 +25,7 @@ export function ProviderTestPanel() {
   const testAllProviders = async () => {
     setIsLoading(true);
     try {
+      console.log('🚀 Starting provider tests...');
       const response = await fetch('/api/debug/ai-providers', {
         method: 'POST',
         headers: {
@@ -34,10 +35,32 @@ export function ProviderTestPanel() {
           message: testMessage
         }),
       });
+
+      console.log('📡 API Response status:', response.status);
+      console.log('📡 API Response headers:', response.headers);
+
+      // Check if response is actually JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('❌ API returned non-JSON response:', textResponse.substring(0, 200));
+        throw new Error(`API returned ${response.status} ${response.statusText} - expected JSON but got ${contentType || 'text/html'}`);
+      }
+
       const result = await response.json();
+      console.log('✅ Provider test results:', result);
       setTestResults(result.data.results);
     } catch (error) {
-      console.error('Provider test failed:', error);
+      console.error('❌ Provider test failed:', error);
+      
+      // Show user-friendly error
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -46,6 +69,7 @@ export function ProviderTestPanel() {
   const testSpecificProvider = async (provider: string) => {
     setIsLoading(true);
     try {
+      console.log(`🔍 Testing specific provider: ${provider}`);
       const response = await fetch('/api/debug/ai-providers', {
         method: 'POST',
         headers: {
@@ -56,10 +80,30 @@ export function ProviderTestPanel() {
           message: testMessage
         }),
       });
+
+      console.log(`📡 ${provider} Response status:`, response.status);
+
+      // Check if response is actually JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error(`❌ ${provider} API returned non-JSON response:`, textResponse.substring(0, 200));
+        throw new Error(`${provider} API returned ${response.status} - expected JSON but got ${contentType || 'text/html'}`);
+      }
+
       const result = await response.json();
+      console.log(`✅ ${provider} test result:`, result);
       setTestResults([result.data]);
     } catch (error) {
-      console.error('Provider test failed:', error);
+      console.error(`❌ ${provider} provider test failed:`, error);
+      
+      // Add failed result to display
+      setTestResults([{
+        name: provider,
+        healthy: false,
+        responseTime: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }]);
     } finally {
       setIsLoading(false);
     }

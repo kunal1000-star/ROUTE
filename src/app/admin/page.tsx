@@ -235,6 +235,9 @@ export default function AdminPanel() {
           <Badge variant={systemHealth?.status === 'healthy' ? 'default' : 'destructive'}>
             {systemHealth?.status || 'Unknown'}
           </Badge>
+          <Button size="icon" variant="ghost" onClick={loadSystemData} aria-label="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -265,7 +268,7 @@ export default function AdminPanel() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 overflow-x-auto scrollbar-hide">
+          <TabsList className="grid w-full grid-cols-9 overflow-x-auto scrollbar-hide sticky top-16 z-10 bg-background/95 backdrop-blur px-2 py-1 md:py-2 shadow-sm">
             <TabsTrigger value="overview" className="flex-shrink-0 text-xs">Overview</TabsTrigger>
             <TabsTrigger value="debug" className="flex-shrink-0 text-xs">Debug</TabsTrigger>
             <TabsTrigger value="providers" className="flex-shrink-0 text-xs">Providers</TabsTrigger>
@@ -282,7 +285,7 @@ export default function AdminPanel() {
             {isLoading ? (
               <div className="space-y-6">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i} className="p-6">
+                  <Card key={i} className="p-4 md:p-6">
                     <div className="animate-pulse space-y-4">
                       <div className="h-4 bg-muted rounded w-1/4"></div>
                       <div className="h-8 bg-muted rounded"></div>
@@ -295,7 +298,7 @@ export default function AdminPanel() {
               <>
                 {/* System Status Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="p-6">
+                  <Card className="p-4 md:p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold">System Health</h3>
                       <div className={getStatusColor(systemHealth?.status || 'unknown')}>
@@ -312,7 +315,7 @@ export default function AdminPanel() {
                     </div>
                   </Card>
 
-                  <Card className="p-6">
+                  <Card className="p-4 md:p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold">API Usage</h3>
                       <TrendingUp className="h-5 w-5 text-blue-500" />
@@ -327,7 +330,7 @@ export default function AdminPanel() {
                     </div>
                   </Card>
 
-                  <Card className="p-6">
+                  <Card className="p-4 md:p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold">Success Rate</h3>
                       <Shield className="h-5 w-5 text-green-500" />
@@ -345,7 +348,7 @@ export default function AdminPanel() {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="p-6">
+                  <Card className="p-4 md:p-6">
                     <h3 className="font-semibold mb-4">Quick Actions</h3>
                     <div className="space-y-3">
                       <Button
@@ -364,7 +367,7 @@ export default function AdminPanel() {
                     </div>
                   </Card>
 
-                  <Card className="p-6">
+                  <Card className="p-4 md:p-6">
                     <h3 className="font-semibold mb-4">Recent Activity</h3>
                     <div className="space-y-3">
                       {testResults.length > 0 ? testResults.slice(0, 3).map((result, index) => (
@@ -397,7 +400,7 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Provider Status */}
-                <Card className="p-6">
+                <Card className="p-4 md:p-6">
                   <h3 className="font-semibold mb-4">Provider Status</h3>
                   <div className="space-y-3">
                     {systemHealth?.providers && Object.entries(systemHealth.providers).map(([name, provider]) => (
@@ -672,7 +675,7 @@ export default function AdminPanel() {
 
           {/* Monitoring Tab */}
           <TabsContent value="monitoring" className="space-y-6">
-            <Card className="p-6">
+            <Card className="p-4 md:p-6">
               <h3 className="font-semibold mb-4">Performance Metrics</h3>
               
               {apiUsage && (
@@ -736,7 +739,7 @@ export default function AdminPanel() {
             </Card>
 
             {/* Export/Import */}
-            <Card className="p-6">
+            <Card className="p-4 md:p-6">
               <h3 className="font-semibold mb-4">Data Management</h3>
               <div className="flex gap-4">
                 <Button variant="outline">

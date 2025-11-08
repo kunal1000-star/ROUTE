@@ -270,6 +270,94 @@ export class PromptQueries {
 }
 
 // Maintenance operations
+
+// ================= Per-user provider keys and limits =================
+import { encryptSecret, decryptSecret } from '@/lib/utils/crypto';
+
+export type Provider = 'openrouter' | 'groq' | 'gemini' | 'mistral' | 'cohere' | 'cerebras';
+
+export async function upsertUserProviderKey(userId: string, provider: Provider, apiKey: string) {
+  const { ciphertext, iv } = encryptSecret(apiKey);
+  const { error } = await supabase
+    .from('user_provider_keys')
+    .upsert({
+      user_id: userId,
+      provider,
+      encrypted_key: ciphertext,
+      iv,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,provider' });
+  if (error) throw new DatabaseError(`Failed to save provider key: ${error.message}`, error.code, error);
+}
+
+export async function deleteUserProviderKey(userId: string, provider: Provider) {
+  const { error } = await supabase
+    .from('user_provider_keys')
+    .delete()
+    .eq('user_id', userId)
+    .eq('provider', provider);
+  if (error) throw new DatabaseError(`Failed to delete provider key: ${error.message}`, error.code, error);
+}
+
+export async function getUserProviderKey(userId: string, provider: Provider): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('user_provider_keys')
+    .select('encrypted_key, iv')
+    .eq('user_id', userId)
+    .eq('provider', provider)
+    .single();
+  if (error && error.code !== 'PGRST116') throw new DatabaseError(`Failed to fetch provider key: ${error.message}`, error.code, error);
+  if (!data) return null;
+  const key = decryptSecret(Buffer.from(data.encrypted_key as any), Buffer.from(data.iv as any));
+  return key;
+}
+
+export async function listUserProviderKeyStatus(userId: string) {
+  const providers: Provider[] = ['openrouter','groq','gemini','mistral','cohere','cerebras'];
+  const { data, error } = await supabase
+    .from('user_provider_keys')
+    .select('provider')
+    .eq('user_id', userId);
+  if (error) throw new DatabaseError(`Failed to list provider keys: ${error.message}`, error.code, error);
+  const set = new Set((data || []).map(d => d.provider as Provider));
+  return providers.map(p => ({ provider: p, hasKey: set.has(p) }));
+}
+
+export async function upsertUserProviderLimit(userId: string, provider: Provider, maxPerMin: number) {
+  const { error } = await supabase
+    .from('user_provider_limits')
+    .upsert({
+      user_id: userId,
+      provider,
+      max_requests_per_min: maxPerMin,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,provider' });
+  if (error) throw new DatabaseError(`Failed to save provider limit: ${error.message}`, error.code, error);
+}
+
+export async function getUserProviderLimit(userId: string, provider: Provider): Promise<number | null> {
+  const { data, error } = await supabase
+    .from('user_provider_limits')
+    .select('max_requests_per_min')
+    .eq('user_id', userId)
+    .eq('provider', provider)
+    .single();
+  if (error && error.code !== 'PGRST116') throw new DatabaseError(`Failed to fetch provider limit: ${error.message}`, error.code, error);
+  return data?.max_requests_per_min ?? null;
+}
+
+export async function listUserProviderLimits(userId: string): Promise<Array<{provider: Provider; max_requests_per_min: number}>> {
+  const providers: Provider[] = ['openrouter','groq','gemini','mistral','cohere','cerebras'];
+  const { data, error } = await supabase
+    .from('user_provider_limits')
+    .select('provider, max_requests_per_min')
+    .eq('user_id', userId);
+  if (error) throw new DatabaseError(`Failed to list provider limits: ${error.message}`, error.code, error);
+  const map = new Map<string, number>();
+  (data || []).forEach(r => map.set(r.provider as string, r.max_requests_per_min as number));
+  return providers.map(p => ({ provider: p, max_requests_per_min: map.get(p) ?? 60 }));
+}
+
 export class MaintenanceQueries {
   static async runMaintenanceTasks() {
     try {

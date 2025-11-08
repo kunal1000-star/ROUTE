@@ -20,6 +20,8 @@ type Penalty = {
  * @param penalty - The penalty object.
  */
 export async function applyPenalty(userId: string, penalty: Omit<Penalty, 'user_id'>) {
+  console.log('Applying penalty:', { userId, penalty });
+  
   const { data: gamificationData, error: fetchError } = await (supabaseBrowserClient
     .from('user_gamification')
     .select('*')
@@ -27,7 +29,18 @@ export async function applyPenalty(userId: string, penalty: Omit<Penalty, 'user_
     .single() as any);
 
   if (fetchError || !gamificationData) {
-    console.error('Apply Penalty: Could not fetch user gamification data.', fetchError);
+    console.error('Apply Penalty: Could not fetch user gamification data.', {
+      error: fetchError,
+      userId,
+      errorCode: fetchError?.code,
+      errorMessage: fetchError?.message,
+      errorDetails: fetchError?.details,
+      errorHint: fetchError?.hint,
+      stack: fetchError?.stack
+    });
+    
+    // Log the full error object to understand what's missing
+    console.error('Full fetch error object:', JSON.stringify(fetchError, null, 2));
     return;
   }
 

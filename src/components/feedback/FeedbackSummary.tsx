@@ -341,7 +341,7 @@ export default function FeedbackSummary({ summary, blockId }: { summary: Feedbac
 
                         {additionalTopics.length > 0 && (
                             <div className="mt-4 space-y-2 pt-16">
-                                {additionalTopics.map((topic) => {
+                                {additionalTopics.map((topic, index) => {
                                     const isLinked = topic.type === 'linked';
                                     let displayName = topic.custom_name;
                                     let subtext = null;
@@ -352,8 +352,11 @@ export default function FeedbackSummary({ summary, blockId }: { summary: Feedbac
                                         subtext = `${subjectName} > ${chapterName}`;
                                     }
 
+                                    // Create unique key using multiple identifiers to prevent collisions
+                                    const uniqueKey = `feedback-topic-${topic.id}-${index}-${topic.type}`;
+
                                     return (
-                                    <div key={topic.id} className="flex items-center justify-between rounded-md bg-muted/50 p-2 pl-4 text-sm">
+                                    <div key={uniqueKey} className="flex items-center justify-between rounded-md bg-muted/50 p-2 pl-4 text-sm">
                                         <div className="flex items-center gap-2">
                                             {isLinked ? <Link2 className="h-4 w-4 text-blue-600" /> : <Edit className="h-4 w-4 text-muted-foreground" />}
                                             <div>

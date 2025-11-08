@@ -11,12 +11,12 @@ import type {
 import type { AIProvider } from '@/types/api-test';
 
 // Import working provider clients
-import { groqClient } from './providers/groq-client';
-import { geminiClient } from './providers/gemini-client';
-import { cerebrasClient } from './providers/cerebras-client';
-import { cohereClient } from './providers/cohere-client';
-import { mistralClient } from './providers/mistral-client';
-import { openRouterClient } from './providers/openrouter-client';
+import { createGroqClient } from './providers/groq-client';
+import { createGeminiClient } from './providers/gemini-client';
+import { createCerebrasClient } from './providers/cerebras-client';
+import { createCohereClient } from './providers/cohere-client';
+import { createMistralClient } from './providers/mistral-client';
+import { createOpenRouterClient } from './providers/openrouter-client';
 
 // Import supporting services (optional)
 import { responseCache } from './response-cache';
@@ -34,13 +34,13 @@ interface ProviderConfig {
 
 // Working providers only (to avoid missing implementations)
 const ALL_PROVIDERS: Record<AIProvider, ProviderConfig> = {
-  groq: { client: groqClient, healthy: true, lastCheck: 0, responseTime: 0, tier: 1 },
-  gemini: { client: geminiClient, healthy: true, lastCheck: 0, responseTime: 0, tier: 2 },
-  cerebras: { client: cerebrasClient, healthy: true, lastCheck: 0, responseTime: 0, tier: 3 },
-  cohere: { client: cohereClient, healthy: true, lastCheck: 0, responseTime: 0, tier: 4 },
-  mistral: { client: mistralClient, healthy: true, lastCheck: 0, responseTime: 0, tier: 5 },
-  openrouter: { client: openRouterClient, healthy: true, lastCheck: 0, responseTime: 0, tier: 6 },
-  google: { client: null, healthy: false, lastCheck: 0, responseTime: 0, tier: 7 } // Disabled for now
+  groq: { client: null, healthy: true, lastCheck: 0, responseTime: 0, tier: 1 },
+  gemini: { client: null, healthy: true, lastCheck: 0, responseTime: 0, tier: 2 },
+  cerebras: { client: null, healthy: true, lastCheck: 0, responseTime: 0, tier: 3 },
+  cohere: { client: null, healthy: true, lastCheck: 0, responseTime: 0, tier: 4 },
+  mistral: { client: null, healthy: true, lastCheck: 0, responseTime: 0, tier: 5 },
+  openrouter: { client: null, healthy: true, lastCheck: 0, responseTime: 0, tier: 6 },
+  google: { client: null, healthy: false, lastCheck: 0, responseTime: 0, tier: 7 }
 };
 
 // Fallback Chain Configuration (working providers only)
@@ -85,8 +85,16 @@ export class AIServiceManager {
       console.log(`[${requestId}] Query detected as: ${queryDetection.type}`);
 
       // Step 4: Get available providers for this query type
-      const availableProviders = this.getAvailableProviders(queryDetection.type);
-      console.log(`[${requestId}] Available providers: ${availableProviders.join(', ')}`);
+      let availableProviders = this.getAvailableProviders(queryDetection.type);
+      // If a preferred provider is specified, try it first
+      const preferred = (request as any).preferredProvider as AIProvider | undefined;
+      if (preferred && !availableProviders.includes(preferred)) {
+        availableProviders = [preferred, ...availableProviders];
+      } else if (preferred) {
+        // Move to front
+        availableProviders = [preferred, ...availableProviders.filter(p => p !== preferred)];
+      }
+      console.log(`[${requestId}] Available providers: ${availableProviders.join(', ')}${preferred ? ` (preferred: ${preferred})` : ''}`);
 
       // Step 5: Get app data context if needed
       let appDataContext: AppDataContext | undefined;
@@ -286,7 +294,7 @@ export class AIServiceManager {
     const chain = DYNAMIC_FALLBACK_CHAINS[queryType] || ['groq', 'gemini'];
     return chain.filter(provider => {
       const config = ALL_PROVIDERS[provider];
-      return config.healthy && config.client !== null;
+      return config.healthy; // client instance is created on demand
     });
   }
 
@@ -316,24 +324,21 @@ export class AIServiceManager {
   private async performHealthCheck(): Promise<void> {
     console.log('Performing health check on all providers...');
     
-    for (const [providerName, config] of Object.entries(ALL_PROVIDERS)) {
-      // Skip providers without clients
-      if (!config.client) {
-        config.healthy = false;
-        continue;
-      }
-      
+    for (const [providerName, _config] of Object.entries(ALL_PROVIDERS)) {
       try {
         const startTime = Date.now();
-        await config.client.healthCheck();
+        const tempClient = await this.createClientForProvider(providerName as any, null);
+        await tempClient.healthCheck();
         const responseTime = Date.now() - startTime;
         
+        const config = ALL_PROVIDERS[providerName as any];
         config.healthy = true;
         config.responseTime = responseTime;
         config.lastCheck = Date.now();
         
         console.log(`✅ ${providerName}: healthy (${responseTime}ms)`);
       } catch (error) {
+        const config = ALL_PROVIDERS[providerName as any];
         config.healthy = false;
         config.lastCheck = Date.now();
         console.warn(`❌ ${providerName}: unhealthy - ${error}`);
@@ -385,10 +390,8 @@ export class AIServiceManager {
   }): Promise<AIServiceManagerResponse> {
     const { providerName, request, queryDetection, appDataContext, tier, requestId } = params;
     
-    const client = ALL_PROVIDERS[providerName].client;
-    if (!client) {
-      throw new Error(`Unknown provider: ${providerName}`);
-    }
+    // Resolve per-user api key and construct client
+const client = await this.createClientForProvider(providerName, request.userId);
 
     // Prepare messages
     const messages = this.prepareMessages(request, queryDetection, appDataContext);

@@ -691,3 +691,28 @@ export class RateLimitManager {
 
 // Export singleton instance
 export const rateLimitManager = new RateLimitManager();
+
+// Lightweight per-user per-provider limiter for API routes
+const _buckets = new Map<string, { count: number; reset: number; limit: number }>();
+export async function shouldAllow(userId: string, provider: string): Promise<{ allow: boolean; retryAfter?: number }> {
+  try {
+    const { getUserProviderLimit } = await import('@/lib/database/queries');
+    const key = `${userId}:${provider}`;
+    const now = Date.now();
+    const windowMs = 60_000;
+    let entry = _buckets.get(key);
+    if (!entry || now >= entry.reset) {
+      const perMin = await getUserProviderLimit(userId, provider as any) ?? 150;
+      entry = { count: 0, reset: now + windowMs, limit: perMin };
+      _buckets.set(key, entry);
+    }
+    if (entry.count >= entry.limit) {
+      return { allow: false, retryAfter: Math.ceil((entry.reset - now) / 1000) };
+    }
+    entry.count += 1;
+    return { allow: true };
+  } catch {
+    // If anything goes wrong, allow to avoid hard blocking
+    return { allow: true };
+  }
+}

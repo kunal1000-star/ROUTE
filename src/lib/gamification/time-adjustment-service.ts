@@ -27,6 +27,17 @@ export async function calculateAndApplyTimeAdjustment(
   blockId: string,
   scheduledStartTime: string
 ): Promise<TimeAdjustmentResult> {
+  // Input validation
+  if (!userId || typeof userId !== 'string') {
+    throw new Error('Invalid userId provided');
+  }
+  if (!blockId || typeof blockId !== 'string') {
+    throw new Error('Invalid blockId provided');
+  }
+  if (!scheduledStartTime || typeof scheduledStartTime !== 'string') {
+    throw new Error('Invalid scheduledStartTime provided');
+  }
+
   const currentTime = new Date();
   const scheduledTime = new Date(scheduledStartTime);
   
@@ -52,20 +63,55 @@ export async function calculateAndApplyTimeAdjustment(
   const newStartTimeString = newStartTime.toISOString();
   
   try {
+    console.log('Starting time adjustment for block:', {
+      blockId,
+      userId,
+      scheduledStartTime,
+      currentTime: currentTime.toISOString(),
+      delaySeconds,
+      newStartTime: newStartTimeString
+    });
+    
     // Update block start time in database
-    const { error: updateError } = await supabaseBrowserClient
-      .from('blocks')
-      .update({ 
-        start_time: newStartTimeString,
-        updated_at: currentTime.toISOString()
+    console.log('Updating block start time in database...', {
+      blockId,
+      userId,
+      newStartTime: newStartTimeString
+    });
+    
+    const { data: updateResult, error: updateError } = await (supabaseBrowserClient
+      .from('blocks') as any)
+      .update({
+        start_time: newStartTimeString
+        // Note: removed updated_at column as it doesn't exist in the blocks table
       })
       .eq('id', blockId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select();
     
     if (updateError) {
-      console.error('Failed to update block start time:', updateError);
+      console.error('Failed to update block start time:', {
+        error: updateError,
+        blockId,
+        userId,
+        newStartTime: newStartTimeString,
+        errorCode: updateError.code,
+        errorMessage: updateError.message,
+        errorDetails: updateError.details,
+        errorHint: updateError.hint,
+        stack: updateError.stack
+      });
+      
+      // Log the full error object to understand what's missing
+      console.error('Full error object:', JSON.stringify(updateError, null, 2));
       throw updateError;
     }
+    
+    console.log('Block updated successfully:', {
+      blockId,
+      userId,
+      updateResult
+    });
     
     // Apply penalty to user's points
     const penalty = {
@@ -75,7 +121,9 @@ export async function calculateAndApplyTimeAdjustment(
       related_entity_id: blockId,
     };
     
+    console.log('Applying penalty:', penalty);
     await applyPenalty(userId, penalty);
+    console.log('Penalty applied successfully');
     
     return {
       adjusted: true,
@@ -88,6 +136,12 @@ export async function calculateAndApplyTimeAdjustment(
     
   } catch (error) {
     console.error('Error applying time adjustment:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error: error
+    });
+    
     // Even if DB update fails, apply the penalty for accountability
     const penalty = {
       penalty_type: 'LATE_START_DELAY' as const,
@@ -96,7 +150,11 @@ export async function calculateAndApplyTimeAdjustment(
       related_entity_id: blockId,
     };
     
-    await applyPenalty(userId, penalty);
+    try {
+      await applyPenalty(userId, penalty);
+    } catch (penaltyError) {
+      console.error('Failed to apply penalty as well:', penaltyError);
+    }
     
     return {
       adjusted: false, // Indicates the time adjustment failed

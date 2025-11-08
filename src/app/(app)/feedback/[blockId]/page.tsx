@@ -262,45 +262,70 @@ function StudyFeedback({ user, block }: { user: User, block: BlockWithDetails })
     
     const [isSubmitted, setIsSubmitted] = useState(false);
 
-    // Fetch topic data from database
+    // Fetch topic data from database with comprehensive error handling
     const fetchTopicData = useCallback(async (userId: string) => {
         setIsFetchingTopics(true);
         try {
+            console.log('🔍 Fetching topic data for user:', userId);
+            
+            // Use type assertions to handle Supabase type inference issues
             const [subjectsRes, chaptersRes, topicsRes] = await Promise.all([
-                supabaseBrowserClient.from('subjects').select('*').eq('user_id', userId),
-                supabaseBrowserClient.from('chapters').select('*, subject:subjects(id, name, category)').eq('user_id', userId),
-                supabaseBrowserClient.from('topics').select('*, chapter:chapters(name, subject:subjects(name, id))').eq('user_id', userId).or('is_spare_only.is.null,is_spare_only.eq.false')
+                (supabaseBrowserClient.from('subjects') as any).select('*').eq('user_id', userId),
+                (supabaseBrowserClient.from('chapters') as any).select('*, subject:subjects(id, name, category)').eq('user_id', userId),
+                (supabaseBrowserClient.from('topics') as any).select('*, chapter:chapters(name, subject:subjects(name, id))').eq('user_id', userId).or('is_spare_only.is.null,is_spare_only.eq.false')
             ]);
             
-            if (subjectsRes.error) throw new Error(subjectsRes.error.message);
-            setAllSubjects(subjectsRes.data || []);
-            const subjectMap = new Map((subjectsRes.data || []).map(s => [s.id, s]));
+            if (subjectsRes.error) {
+                console.error('Error fetching subjects:', subjectsRes.error);
+                throw new Error(`Failed to fetch subjects: ${subjectsRes.error.message}`);
+            }
+            const subjects = subjectsRes.data || [];
+            console.log('📚 Fetched subjects:', subjects.length);
+            setAllSubjects(subjects);
+            const subjectMap = new Map(subjects.map((s: any) => [s.id, s]));
 
-            if (chaptersRes.error) throw new Error(chaptersRes.error.message);
-            setAllChapters(chaptersRes.data || []);
-            const chapterMap = new Map((chaptersRes.data || []).map(c => [c.id, c]));
+            if (chaptersRes.error) {
+                console.error('Error fetching chapters:', chaptersRes.error);
+                throw new Error(`Failed to fetch chapters: ${chaptersRes.error.message}`);
+            }
+            const chapters = chaptersRes.data || [];
+            console.log('📖 Fetched chapters:', chapters.length);
+            setAllChapters(chapters);
+            const chapterMap = new Map(chapters.map((c: any) => [c.id, c]));
 
-            if (topicsRes.error) throw new Error(topicsRes.error.message);
-            setAllTopics(topicsRes.data as OriginalTopic[] || []);
+            if (topicsRes.error) {
+                console.error('Error fetching topics:', topicsRes.error);
+                throw new Error(`Failed to fetch topics: ${topicsRes.error.message}`);
+            }
+            const topics = topicsRes.data || [];
+            console.log('📝 Fetched topics:', topics.length);
+            setAllTopics(topics as OriginalTopic[]);
 
             let fetchedPlannedTopics: OriginalTopic[] = [];
             if (block.topics && block.topics.length > 0) {
-                fetchedPlannedTopics = (topicsRes.data as OriginalTopic[] || []).filter(t => (block.topics || []).includes(String(t.id)));
+                fetchedPlannedTopics = topics.filter((t: any) => (block.topics || []).includes(String(t.id)));
             } else if (block.chapters && block.chapters.length > 0) {
-                fetchedPlannedTopics = (topicsRes.data as OriginalTopic[] || []).filter(t => block.chapters.some(c => {
+                fetchedPlannedTopics = topics.filter((t: any) => block.chapters.some(c => {
                     const chapterId = typeof c === 'string' ? c : String((c as any).id);
                     return String(t.chapter_id) === chapterId;
                 }));
             }
             
+            console.log('🎯 Planned topics found:', fetchedPlannedTopics.length);
             const topicsWithSubjects = fetchedPlannedTopics.map((t: any) => {
-              const chapterInfo = chapterMap.get(t.chapter_id);
+              const chapterInfo = chapterMap.get(t.chapter_id) as any;
               const subjectInfo = chapterInfo ? subjectMap.get(chapterInfo.subject_id) : null;
               return { ...t, chapter: { ...chapterInfo, subject: subjectInfo } };
             });
             setPlannedTopics(topicsWithSubjects as OriginalTopic[]);
+            console.log('✅ Topic data fetching completed');
         } catch (err: any) {
-             toast({ variant: 'destructive', title: 'Error loading topics', description: err.message });
+            console.error('❌ Error in fetchTopicData:', err);
+            toast({
+                variant: 'destructive',
+                title: 'Error loading topics',
+                description: err.message || 'Unknown error occurred while loading topics'
+            });
         } finally {
             setIsFetchingTopics(false);
         }
@@ -925,8 +950,11 @@ function StudyFeedback({ user, block }: { user: User, block: BlockWithDetails })
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
-                            {additionalTopics.map(topic => (
-                                <div key={topic.id} className="flex items-center justify-between rounded-md bg-muted/50 p-3 text-sm">
+                            {additionalTopics.map((topic, index) => {
+                                // Create unique key using multiple identifiers to prevent collisions
+                                const uniqueKey = `feedback-block-${topic.id}-${index}-${topic.type}`;
+                                return (
+                                <div key={uniqueKey} className="flex items-center justify-between rounded-md bg-muted/50 p-3 text-sm">
                                     <div>
                                         <p className="font-semibold">{topic.name}</p>
                                         <p className="text-muted-foreground">{topic.subject} {'>'} {topic.chapter}</p>
@@ -935,7 +963,8 @@ function StudyFeedback({ user, block }: { user: User, block: BlockWithDetails })
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </CardContent>
                 </Card>

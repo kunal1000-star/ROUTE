@@ -86,6 +86,11 @@ export default function MobileHeader() {
                 </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/admin')} className="m-1 rounded-lg">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Admin Panel</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/settings')} className="m-1 rounded-lg">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>

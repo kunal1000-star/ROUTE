@@ -10,6 +10,7 @@ interface ChatApiRequest {
   message: string;
   provider?: AIProvider;
   context?: any;
+  conversationId?: string;
   preferences?: any;
   sessionId?: string;
 }
@@ -53,106 +54,55 @@ function createMockStreamingResponse(message: string, sessionId?: string) {
   };
 }
 
-// POST /api/chat/stream - Stream a chat message
+// POST /api/chat/stream - Stream a chat message (single-chunk reliability)
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
-  
+
   try {
-    // Parse request body
     const body = await request.json() as ChatApiRequest;
-    
-    // Validate required fields
     if (!body.message || typeof body.message !== 'string') {
       return new Response(
-        encoder.encode(`data: ${JSON.stringify({
-          type: 'error',
-          error: {
-            code: 'INVALID_REQUEST',
-            message: 'Message is required and must be a string',
-          }
-        })}\n\n`),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'text/plain',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-          },
-        }
+        encoder.encode(`data: ${JSON.stringify({ type: 'error', error: { code: 'INVALID_REQUEST', message: 'Message is required and must be a string' } })}\n\n`),
+        { status: 400, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' } }
       );
     }
 
-    // Get chat service safely
-    const { service: chatService, initialized } = await getChatServiceSafely();
-    
-    // Convert API request to internal format
-    const chatRequest = {
-      message: body.message,
-      context: body.context,
-      preferences: {
-        ...body.preferences,
-        streamResponses: true, // Enable streaming
-      },
-      provider: body.provider as AIProvider,
-      sessionId: body.conversationId || body.sessionId,
-      stream: true,
-    };
-
-    // Create readable stream from unified chat service
+    // Create a readable stream that emits start -> content -> end
     const readable = new ReadableStream({
       async start(controller) {
-        const abort = request.signal;
         try {
-          const chatService = await getInitializedChatService();
+          const { processQuery } = await import('@/lib/ai/ai-service-manager-unified');
 
-          // Send initial metadata
-          const initialChunk = {
-            type: 'start',
-            data: {
-              sessionId: chatRequest.sessionId,
-              provider: chatRequest.provider || 'auto',
-              timestamp: new Date().toISOString(),
-              serviceInitialized: initialized,
-            }
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialChunk)}\n\n`));
+          // start
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'start', data: { timestamp: new Date().toISOString(), provider: body.provider || 'auto' } })}\n\n`));
 
-          const stream = chatService.streamMessage({
-            message: chatRequest.message,
-            context: chatRequest.context,
-            preferences: { ...chatRequest.preferences, streamResponses: true },
-            provider: chatRequest.provider,
-            sessionId: chatRequest.sessionId,
-          });
+          // compute single response
+          const resp = await processQuery({
+            userId: body.sessionId || 'anonymous',
+            conversationId: body.conversationId || body.sessionId || null,
+            message: body.message,
+            chatType: 'general',
+            includeAppData: false,
+            preferredProvider: body.provider as any,
+          } as any);
 
-          for await (const chunk of stream as any) {
-            if (abort.aborted) break;
-            if (chunk.type === 'content') {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk.data })}\n\n`));
-            } else if (chunk.type === 'metadata') {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: chunk.data })}\n\n`));
-            } else if (chunk.type === 'error') {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: chunk.data })}\n\n`));
-            }
+          // optional metadata (include hint if graceful/system)
+          const meta: any = { provider: resp.provider, model: resp.model_used };
+          if ((resp as any).provider === 'system') {
+            meta.hint = 'All providers failed. Check API keys for the selected provider or raise rate limits.';
           }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: meta })}\n\n`));
 
+          // single content chunk
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: resp.content })}\n\n`));
+
+          // end
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'end', data: { timestamp: new Date().toISOString() } })}\n\n`));
           controller.close();
         } catch (error) {
-          const errorChunk = {
-            type: 'error',
-            error: {
-              code: 'STREAMING_ERROR',
-              message: error instanceof Error ? error.message : 'Streaming failed',
-            },
-            timestamp: new Date().toISOString(),
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorChunk)}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: { code: 'STREAMING_ERROR', message: error instanceof Error ? error.message : 'Streaming failed' } })}\n\n`));
           controller.close();
         }
-      },
-      cancel() {
-        // nothing special; relying on request.signal
       }
     });
 
@@ -166,31 +116,10 @@ export async function POST(request: NextRequest) {
         'Access-Control-Allow-Headers': 'Content-Type',
       },
     });
-
   } catch (error) {
     console.error('Chat stream API error:', error);
-    
-    const errorResponse = {
-      type: 'error',
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
-        details: error instanceof Error ? error.message : String(error),
-      },
-      timestamp: new Date().toISOString(),
-    };
-    
-    return new Response(
-      encoder.encode(`data: ${JSON.stringify(errorResponse)}\n\n`),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'text/plain',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
-      }
-    );
+    const errorResponse = { type: 'error', error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', details: error instanceof Error ? error.message : String(error) }, timestamp: new Date().toISOString() };
+    return new Response(encoder.encode(`data: ${JSON.stringify(errorResponse)}\n\n`), { status: 500, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' } });
   }
 }
 

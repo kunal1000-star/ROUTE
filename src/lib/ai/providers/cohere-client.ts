@@ -60,13 +60,14 @@ export class CohereClient {
   private readonly apiKey: string;
   private readonly baseUrl: string = 'https://api.cohere.ai/v1';
   private readonly timeout: number = 25000;
-  private readonly maxRetries: number = 3;
+  private readonly maxRetries: number = 2;
   private readonly retryDelay: number = 2000;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.COHERE_API_KEY || '';
+    const envKey = process.env.COHERE_API_KEY || '';
+    this.apiKey = (apiKey && apiKey.trim()) ? apiKey : envKey;
     if (!this.apiKey) {
-      throw new Error('COHERE_API_KEY environment variable is required');
+      throw new Error('Cohere API key is required');
     }
   }
 

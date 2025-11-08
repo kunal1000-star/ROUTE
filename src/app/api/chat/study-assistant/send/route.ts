@@ -57,7 +57,7 @@ function createMockAiResponse(message: string, chatType: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { conversationId, message, chatType, isPersonalQuery = false } = await request.json();
+    const { conversationId, message, chatType, isPersonalQuery = false, provider: reqProvider } = await request.json();
 
     if (!message || !chatType) {
       return NextResponse.json(
@@ -76,6 +76,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: invalid or missing token' }, { status: 401 });
     }
     const userId = authData.user.id;
+
+    // Rate limiting per-user per-provider (provider may come from body or default)
+    const provider = (reqProvider || 'openrouter') as string;
+    const { shouldAllow } = await import('@/lib/ai/rate-limit-manager');
+    const rl = await shouldAllow(userId, provider);
+    if (!rl.allow) {
+      return NextResponse.json({ error: 'Rate limit exceeded', retryAfter: rl.retryAfter }, { status: 429 });
+    }
 
     // If no conversationId provided, create new conversation
     let finalConversationId = conversationId as string | null | undefined;

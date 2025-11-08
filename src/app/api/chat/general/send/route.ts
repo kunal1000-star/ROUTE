@@ -78,6 +78,14 @@ export async function POST(request: NextRequest) {
     }
     const userId = authData.user.id;
 
+    // Rate limiting per-user per-provider
+    const provider = (requestBody?.provider || 'openrouter') as string;
+    const { shouldAllow } = await import('@/lib/ai/rate-limit-manager');
+    const rl = await shouldAllow(userId, provider);
+    if (!rl.allow) {
+      return NextResponse.json({ error: 'Rate limit exceeded', retryAfter: rl.retryAfter }, { status: 429 });
+    }
+
     // Additional logging for debugging
     console.log('UserId (derived):', userId);
     console.log('ConversationId:', conversationId);
@@ -147,7 +155,8 @@ export async function POST(request: NextRequest) {
           conversationId: finalConversationId,
           message,
           chatType,
-          includeAppData: false
+          includeAppData: false,
+          preferredProvider: provider as any
         });
       } catch (serviceError) {
         console.warn('AI service error, using mock response:', serviceError);

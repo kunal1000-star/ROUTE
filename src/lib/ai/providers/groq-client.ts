@@ -49,13 +49,14 @@ export class GroqClient {
   private readonly apiKey: string;
   private readonly baseUrl: string = 'https://api.groq.com/openai/v1';
   private readonly timeout: number = 25000; // 25 seconds as specified
-  private readonly maxRetries: number = 3;
+  private readonly maxRetries: number = 2;
   private readonly retryDelay: number = 2000; // 2 seconds as specified
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.GROQ_API_KEY || '';
+    const envKey = process.env.GROQ_API_KEY || '';
+    this.apiKey = (apiKey && apiKey.trim()) ? apiKey : envKey;
     if (!this.apiKey) {
-      throw new Error('GROQ_API_KEY environment variable is required');
+      throw new Error('Groq API key is required');
     }
   }
 

@@ -55,6 +55,8 @@ interface SettingsPanelProps {
 
 import ThemeToggle from '@/components/ui/theme-toggle';
 
+import ProviderKeysPanel from './ProviderKeysPanel';
+
 export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('aiModel');
@@ -465,6 +467,10 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
               />
             </TabsContent>
           </Tabs>
+
+<section className="mt-6">
+  <ProviderKeysPanel />
+</section>
         </CardContent>
       </Card>
     </div>

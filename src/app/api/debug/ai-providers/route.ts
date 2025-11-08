@@ -2,12 +2,14 @@
 // =================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { groqClient } from '@/lib/ai/providers/groq-client';
-import { geminiClient } from '@/lib/ai/providers/gemini-client';
 import { cerebrasClient } from '@/lib/ai/providers/cerebras-client';
-import { cohereClient } from '@/lib/ai/providers/cohere-client';
-import { mistralClient } from '@/lib/ai/providers/mistral-client';
-import { openRouterClient } from '@/lib/ai/providers/openrouter-client';
+
+// Try to import available clients, with fallbacks for missing ones
+let groqClient: any;
+let geminiClient: any;
+let cohereClient: any;
+let mistralClient: any;
+let openRouterClient: any;
 
 interface ProviderTestRequest {
   provider?: string;
@@ -24,8 +26,55 @@ interface ProviderHealthResult {
   details?: any;
 }
 
+async function initializeClients() {
+  try {
+    const groqModule: any = await import('@/lib/ai/providers/groq-client');
+    groqClient = groqModule.groqClient;
+    console.log('✅ Groq client loaded');
+  } catch (e) {
+    console.warn('⚠️ Groq client not available:', e);
+  }
+
+  try {
+    const geminiModule: any = await import('@/lib/ai/providers/gemini-client');
+    geminiClient = geminiModule.geminiClient;
+    console.log('✅ Gemini client loaded');
+  } catch (e) {
+    console.warn('⚠️ Gemini client not available:', e);
+  }
+
+  try {
+    const cohereModule: any = await import('@/lib/ai/providers/cohere-client');
+    cohereClient = cohereModule.cohereClient;
+    console.log('✅ Cohere client loaded');
+  } catch (e) {
+    console.warn('⚠️ Cohere client not available:', e);
+  }
+
+  try {
+    const mistralModule: any = await import('@/lib/ai/providers/mistral-client');
+    mistralClient = mistralModule.mistralClient;
+    console.log('✅ Mistral client loaded');
+  } catch (e) {
+    console.warn('⚠️ Mistral client not available:', e);
+  }
+
+  try {
+    const openrouterModule: any = await import('@/lib/ai/providers/openrouter-client');
+    openRouterClient = openrouterModule.openRouterClient;
+    console.log('✅ OpenRouter client loaded');
+  } catch (e) {
+    console.warn('⚠️ OpenRouter client not available:', e);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Initialize clients on first request
+    if (!groqClient) {
+      await initializeClients();
+    }
+
     const body = await request.json() as ProviderTestRequest;
     const { provider, message, model, timeout } = body;
 
@@ -81,7 +130,7 @@ async function testSpecificProvider(
       provider: providerName,
       healthy: false,
       responseTime: 0,
-      error: 'Provider client not available'
+      error: 'Provider client not available or not implemented yet'
     };
   }
 
@@ -94,7 +143,7 @@ async function testSpecificProvider(
         provider: providerName,
         healthy: false,
         responseTime: healthCheck.responseTime,
-        error: healthCheck.error
+        error: healthCheck.error || 'Health check failed'
       };
     }
 
@@ -108,12 +157,21 @@ async function testSpecificProvider(
       if (timeout) chatParams.timeout = timeout;
 
       let chatResponse;
-      switch (providerName) {
-        case 'cohere':
-          chatResponse = await client.chat({ message, ...chatParams });
-          break;
-        default:
-          chatResponse = await client.chat(chatParams);
+      try {
+        switch (providerName) {
+          case 'cohere':
+            chatResponse = await client.chat({ message, ...chatParams });
+            break;
+          default:
+            chatResponse = await client.chat(chatParams);
+        }
+      } catch (chatError) {
+        return {
+          provider: providerName,
+          healthy: false,
+          responseTime: Date.now() - startTime,
+          error: chatError instanceof Error ? chatError.message : 'Chat request failed'
+        };
       }
 
       return {
@@ -154,9 +212,20 @@ async function testAllProviders(message?: string, model?: string, timeout?: numb
   const providers = ['groq', 'gemini', 'cerebras', 'cohere', 'mistral', 'openrouter'];
   const results: ProviderHealthResult[] = [];
 
+  // Initialize clients if not already done
+  if (!groqClient) {
+    await initializeClients();
+  }
+
   for (const provider of providers) {
+    console.log(`🔍 Testing provider: ${provider}`);
     const result = await testSpecificProvider(provider, message, model, timeout);
     results.push(result);
+    console.log(`📊 ${provider} result:`, { 
+      healthy: result.healthy, 
+      responseTime: result.responseTime,
+      error: result.error 
+    });
   }
 
   return results;
@@ -165,6 +234,10 @@ async function testAllProviders(message?: string, model?: string, timeout?: numb
 // GET endpoint for provider status overview
 export async function GET() {
   try {
+    if (!groqClient) {
+      await initializeClients();
+    }
+
     const providers = ['groq', 'gemini', 'cerebras', 'cohere', 'mistral', 'openrouter'];
     const statusPromises = providers.map(async (provider) => {
       const result = await testSpecificProvider(provider);

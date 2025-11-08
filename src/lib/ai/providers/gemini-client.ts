@@ -75,13 +75,14 @@ export class GeminiClient {
   private readonly apiKey: string;
   private readonly baseUrl: string = 'https://generativelanguage.googleapis.com/v1beta';
   private readonly timeout: number = 25000; // 25 seconds as specified
-  private readonly maxRetries: number = 3;
+  private readonly maxRetries: number = 2;
   private readonly retryDelay: number = 2000; // 2 seconds as specified
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.GEMINI_API_KEY || '';
+    const envKey = process.env.GEMINI_API_KEY || '';
+    this.apiKey = (apiKey && apiKey.trim()) ? apiKey : envKey;
     if (!this.apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is required');
+      throw new Error('Gemini API key is required');
     }
   }
 

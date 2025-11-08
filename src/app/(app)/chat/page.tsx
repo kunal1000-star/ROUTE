@@ -141,10 +141,6 @@ export default function ChatPage() {
         {/* Quick Actions */}
         <div className="mt-8 text-center">
           <div className="flex items-center justify-center gap-4">
-            <Button variant="outline" onClick={() => router.push('/admin')}>
-              <Settings className="h-4 w-4 mr-2" />
-              Admin Panel
-            </Button>
             <Button variant="outline" onClick={() => router.push('/dashboard')}>
               <Activity className="h-4 w-4 mr-2" />
               System Dashboard

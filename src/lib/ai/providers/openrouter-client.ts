@@ -43,13 +43,14 @@ export class OpenRouterClient {
   private readonly apiKey: string;
   private readonly baseUrl: string = 'https://openrouter.ai/api/v1';
   private readonly timeout: number = 25000;
-  private readonly maxRetries: number = 3;
+  private readonly maxRetries: number = 2;
   private readonly retryDelay: number = 2000;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.OPENROUTER_API_KEY || '';
+    const envKey = process.env.OPENROUTER_API_KEY || '';
+    this.apiKey = (apiKey && apiKey.trim()) ? apiKey : envKey;
     if (!this.apiKey) {
-      throw new Error('OPENROUTER_API_KEY environment variable is required');
+      throw new Error('OpenRouter API key is required');
     }
   }
 
@@ -104,7 +105,13 @@ export class OpenRouterClient {
         if (attempt === this.maxRetries) {
           throw this.handleError(error, attempt, startTime);
         }
-        await this.delay(this.retryDelay * Math.pow(2, attempt - 1));
+        const msg = (error as any)?.message || '';
+        if (String(msg).includes('429')) {
+          // Do not aggressively retry on 429
+          await this.delay(this.retryDelay * 2 + Math.floor(Math.random() * 1000));
+        } else {
+          await this.delay(this.retryDelay * Math.pow(2, attempt - 1));
+        }
       }
     }
 

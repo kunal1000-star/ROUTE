@@ -82,6 +82,7 @@ export default function GeneralChat({ className }: GeneralChatProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [aiFeaturesActive, setAiFeaturesActive] = useState(false);
   const [aiFeaturesData, setAiFeaturesData] = useState<any>(null);
+  const [provider, setProvider] = useState<'openrouter' | 'groq' | 'gemini' | 'mistral' | 'cohere' | 'cerebras'>('openrouter');
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -272,7 +273,7 @@ export default function GeneralChat({ className }: GeneralChatProps) {
       const res = await exponentialBackoffRetry(() => fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageText, conversationId: currentConversation?.id }),
+        body: JSON.stringify({ message: messageText, conversationId: currentConversation?.id, provider }),
         signal: controller.signal,
       }), { retries: 2, baseDelayMs: 400, maxDelayMs: 2000, jitter: true, signal: controller.signal });
       if (!res.body) throw new Error('No stream body');
@@ -332,6 +333,15 @@ export default function GeneralChat({ className }: GeneralChatProps) {
               append(evt.data);
             }
             if (evt.type === 'metadata') {
+              const providerInfo = [] as string[];
+              if (evt.data?.provider) providerInfo.push(`Provider: ${evt.data.provider}`);
+              if (evt.data?.model) providerInfo.push(`Model: ${evt.data.model}`);
+              const base = providerInfo.length ? providerInfo.join(' · ') : null;
+              if (evt.data?.hint || base) {
+                const msg = base && evt.data?.hint ? `${base} — ${evt.data.hint}` : (evt.data?.hint || base);
+                if (msg) setErrorBanner({ visible: true, message: msg });
+              }
+
               // ensure we don’t keep spinner if provider only sends metadata
               setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, isLoading: false } : m));
             }
@@ -364,7 +374,7 @@ export default function GeneralChat({ className }: GeneralChatProps) {
       exponentialBackoffRetry(() => safeApiCall('/api/chat/general/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, conversationId: currentConversation?.id, message: messageText, chatType: 'general' })
+        body: JSON.stringify({ userId, conversationId: currentConversation?.id, message: messageText, chatType: 'general', provider })
       }), { retries: 2, baseDelayMs: 500, maxDelayMs: 2500 }).catch(() => {/* ignore */});
 
       setErrorBanner(null);
@@ -620,6 +630,24 @@ export default function GeneralChat({ className }: GeneralChatProps) {
               </p>
             </div>
             <div className="flex items-center gap-2">
+             {/* Provider Selector with tooltip */}
+             <div className="flex items-center gap-2">
+               <label className="text-xs text-muted-foreground" title="Provider decides which AI API will respond. Configure your own API keys in Settings. If a key is missing, the app will use the default key if available.">Provider</label>
+               <select
+                 value={provider}
+                 onChange={(e) => setProvider(e.target.value as any)}
+                 className="border rounded px-2 py-1 text-sm"
+                 title="Choose which AI provider to use for this chat. You can configure personal API keys and rate limits in Settings → My Provider API Keys."
+               >
+                 <option value="openrouter">OpenRouter</option>
+                 <option value="groq">Groq</option>
+                 <option value="gemini">Gemini</option>
+                 <option value="mistral">Mistral</option>
+                 <option value="cohere">Cohere</option>
+                 <option value="cerebras">Cerebras</option>
+               </select>
+             </div>
+
               <StreamControls
                 streaming={isStreaming}
                 completed={streamCompleted}
@@ -791,24 +819,6 @@ export default function GeneralChat({ className }: GeneralChatProps) {
               <p className="text-muted-foreground mb-4">
                 Ask me anything about your studies, and I'll help you out!
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md">
-                {[
-                  "What is entropy in thermodynamics?",
-                  "How do I solve quadratic equations?",
-                  "Explain Newton's laws of motion",
-                  "What is the difference between speed and velocity?"
-                ].map((suggestion, i) => (
-                  <Button
-                    key={i}
-                    variant="outline"
-                    size="sm"
-                    className="text-left justify-start h-auto py-2 px-3"
-                    onClick={() => setInputMessage(suggestion)}
-                  >
-                    {suggestion}
-                  </Button>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="space-y-4" role="log" aria-live="polite" aria-relevant="additions text">
