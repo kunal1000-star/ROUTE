@@ -682,10 +682,11 @@ export class EnhancedContextBuilder {
   /**
    * Utility methods
    */
-  private extractLearningStyle(preferences: any, activity: any[]): LearningStyle {
+  private extractLearningStyle(preferences: any, activity: any[] | null | undefined): LearningStyle {
   const prefStyle = (preferences as any)?.learning_style || 'reading_writing';
-  const stepByStep = activity.length > 10;
-  const examplesFirst = activity.some(a => a.topic?.includes('example'));
+  const act = Array.isArray(activity) ? activity : [];
+  const stepByStep = act.length > 10;
+  const examplesFirst = act.some(a => a?.topic?.includes?.('example'));
   
   return {
     type: prefStyle as any,

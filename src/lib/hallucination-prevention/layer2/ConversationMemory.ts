@@ -222,11 +222,8 @@ export class ConversationMemoryManager {
         expiresAt: this.calculateExpirationDate(memoryData.retention)
       };
 
-      const { data, error } = await (supabase
-        .from('conversation_memory') as any)
-        .insert([{
+      const insertPayload: any = {
           user_id: memory.userId,
-          conversation_id: memory.conversationId,
           interaction_data: {
             ...memory.interactionData,
             memoryType: memory.memoryType,
@@ -238,10 +235,17 @@ export class ConversationMemoryManager {
           feedback_collected: memory.feedbackCollected,
           memory_relevance_score: memory.memoryRelevanceScore,
           created_at: memory.createdAt.toISOString(),
-          updated_at: memory.updatedAt.toISOString()
-        }])
-        .select()
-        .single();
+          updated_at: memory.updatedAt.toISOString(),
+          expires_at: memory.expiresAt?.toISOString?.() ?? null,
+        };
+        if (memory.conversationId) {
+          (insertPayload as any).conversation_id = memory.conversationId;
+        }
+        const { data, error } = await (supabase
+          .from('conversation_memory') as any)
+          .insert([insertPayload])
+          .select()
+          .single();
 
       if (error) throw new Error(`Failed to store memory: ${error.message}`);
 

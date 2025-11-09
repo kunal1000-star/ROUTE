@@ -1,244 +1,243 @@
--- Complete Database Schema Fix Migration
--- Addresses all 3 critical errors from the console logs
--- Safe to run multiple times
+-- Complete Database Schema Fix for Study Buddy System
+-- =====================================================
+-- This script fixes the missing educational_knowledge_base table
+-- and related tables for the hallucination prevention system
 
--- ============================================================================
--- FIX 1: GAMIFICATION SCHEMA - Add missing columns to user_gamification table
--- ============================================================================
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
-DO $$
-BEGIN
-  -- Create user_gamification table if not exists
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.tables 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification'
-  ) THEN
-    CREATE TABLE public.user_gamification (
-      id BIGSERIAL PRIMARY KEY,
-      user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-      current_streak INTEGER DEFAULT 0,
-      longest_streak INTEGER DEFAULT 0,
-      total_points_earned INTEGER DEFAULT 0,
-      total_penalty_points INTEGER DEFAULT 0,
-      experience_points INTEGER DEFAULT 0,
-      level INTEGER DEFAULT 1,
-      current_level INTEGER DEFAULT 1,
-      total_topics_completed INTEGER DEFAULT 0,
-      badges_earned JSONB DEFAULT '[]'::jsonb,
-      last_activity_date TIMESTAMPTZ DEFAULT NOW(),
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  END IF;
+-- Educational Sources Table
+CREATE TABLE IF NOT EXISTS educational_sources (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type VARCHAR(50) NOT NULL CHECK (type IN ('textbook', 'website', 'academic_paper', 'official_doc', 'verified_content')),
+    title TEXT NOT NULL,
+    content TEXT,
+    url TEXT,
+    author VARCHAR(255),
+    publication_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('verified', 'pending', 'disputed')),
+    reliability DECIMAL(3,2) DEFAULT 0.5 CHECK (reliability >= 0 AND reliability <= 1),
+    topics TEXT[] DEFAULT '{}',
+    citations INTEGER DEFAULT 0,
+    educational_relevance DECIMAL(3,2) DEFAULT 0.5 CHECK (educational_relevance >= 0 AND educational_relevance <= 1),
+    metadata JSONB DEFAULT '{}',
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-  -- Add missing columns defensively
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'total_penalty_points'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN total_penalty_points INTEGER DEFAULT 0;
-  END IF;
+-- Educational Knowledge Base Table (Main Table)
+CREATE TABLE IF NOT EXISTS educational_knowledge_base (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT,
+    content TEXT NOT NULL,
+    source TEXT,
+    source_id UUID REFERENCES educational_sources(id) ON DELETE SET NULL,
+    reliability DECIMAL(3,2) DEFAULT 0.5 CHECK (reliability >= 0 AND reliability <= 1),
+    topics TEXT[] DEFAULT '{}',
+    subject VARCHAR(100),
+    type VARCHAR(20) DEFAULT 'fact' CHECK (type IN ('fact', 'concept', 'procedure', 'example', 'reference')),
+    difficulty_level INTEGER DEFAULT 3 CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
+    related_concepts TEXT[] DEFAULT '{}',
+    educational_value DECIMAL(3,2) DEFAULT 0.5 CHECK (educational_value >= 0 AND educational_value <= 1),
+    prerequisites TEXT[] DEFAULT '{}',
+    learning_objectives TEXT[] DEFAULT '{}',
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('verified', 'pending', 'disputed')),
+    explanation TEXT,
+    examples TEXT[] DEFAULT '{}',
+    common_misconceptions TEXT[] DEFAULT '{}',
+    related_questions TEXT[] DEFAULT '{}',
+    difficulty_progression DECIMAL(3,2) DEFAULT 0,
+    retention_score DECIMAL(3,2) DEFAULT 0.5,
+    engagement_score DECIMAL(3,2) DEFAULT 0.5,
+    accuracy_score DECIMAL(3,2) DEFAULT 0.5,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'level'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN level INTEGER DEFAULT 1;
-  END IF;
+-- Fact Relationships Table for knowledge linking
+CREATE TABLE IF NOT EXISTS fact_relationships (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    fact_id UUID REFERENCES educational_knowledge_base(id) ON DELETE CASCADE,
+    related_fact_id UUID REFERENCES educational_knowledge_base(id) ON DELETE CASCADE,
+    relationship_type VARCHAR(20) CHECK (relationship_type IN ('supports', 'contradicts', 'elaborates', 'prerequisite', 'consequence')),
+    relationship_strength DECIMAL(3,2) DEFAULT 0.5 CHECK (relationship_strength >= 0 AND relationship_strength <= 1),
+    explanation TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(fact_id, related_fact_id)
+);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'experience_points'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN experience_points INTEGER DEFAULT 0;
-  END IF;
+-- Conversation Memory Table
+CREATE TABLE IF NOT EXISTS conversation_memory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    conversation_id UUID,
+    interaction_data JSONB NOT NULL DEFAULT '{}',
+    quality_score DECIMAL(3,2) DEFAULT 0.5 CHECK (quality_score >= 0 AND quality_score <= 1),
+    user_satisfaction DECIMAL(3,2),
+    feedback_collected BOOLEAN DEFAULT FALSE,
+    memory_relevance_score DECIMAL(3,2) DEFAULT 0.5 CHECK (memory_relevance_score >= 0 AND memory_relevance_score <= 1),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE
+);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'current_streak'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN current_streak INTEGER DEFAULT 0;
-  END IF;
+-- Context Optimization Logs Table
+CREATE TABLE IF NOT EXISTS context_optimization_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    query_hash VARCHAR(64) NOT NULL,
+    original_context JSONB NOT NULL DEFAULT '{}',
+    optimized_context JSONB NOT NULL DEFAULT '{}',
+    size_reduction INTEGER DEFAULT 0,
+    relevance_score DECIMAL(3,2) DEFAULT 0,
+    optimization_strategy VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'longest_streak'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN longest_streak INTEGER DEFAULT 0;
-  END IF;
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_educational_knowledge_base_subject ON educational_knowledge_base(subject);
+CREATE INDEX IF NOT EXISTS idx_educational_knowledge_base_type ON educational_knowledge_base(type);
+CREATE INDEX IF NOT EXISTS idx_educational_knowledge_base_topics ON educational_knowledge_base USING GIN(topics);
+CREATE INDEX IF NOT EXISTS idx_educational_knowledge_base_search ON educational_knowledge_base USING GIN(to_tsvector('english', content));
+CREATE INDEX IF NOT EXISTS idx_educational_knowledge_base_verification ON educational_knowledge_base(verification_status);
+CREATE INDEX IF NOT EXISTS idx_educational_knowledge_base_educational_value ON educational_knowledge_base(educational_value);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'total_points_earned'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN total_points_earned INTEGER DEFAULT 0;
-  END IF;
+CREATE INDEX IF NOT EXISTS idx_educational_sources_type ON educational_sources(type);
+CREATE INDEX IF NOT EXISTS idx_educational_sources_verification ON educational_sources(verification_status);
+CREATE INDEX IF NOT EXISTS idx_educational_sources_reliability ON educational_sources(reliability);
+CREATE INDEX IF NOT EXISTS idx_educational_sources_search ON educational_sources USING GIN(to_tsvector('english', title || ' ' || COALESCE(content, '')));
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'total_topics_completed'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN total_topics_completed INTEGER DEFAULT 0;
-  END IF;
+CREATE INDEX IF NOT EXISTS idx_fact_relationships_fact_id ON fact_relationships(fact_id);
+CREATE INDEX IF NOT EXISTS idx_fact_relationships_related_fact_id ON fact_relationships(related_fact_id);
+CREATE INDEX IF NOT EXISTS idx_fact_relationships_type ON fact_relationships(relationship_type);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'badges_earned'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN badges_earned JSONB DEFAULT '[]'::jsonb;
-  END IF;
+CREATE INDEX IF NOT EXISTS idx_conversation_memory_user_id ON conversation_memory(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_memory_conversation_id ON conversation_memory(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_memory_created_at ON conversation_memory(created_at);
+CREATE INDEX IF NOT EXISTS idx_conversation_memory_expires_at ON conversation_memory(expires_at);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'last_activity_date'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN last_activity_date TIMESTAMPTZ DEFAULT NOW();
-  END IF;
+CREATE INDEX IF NOT EXISTS idx_context_optimization_logs_user_id ON context_optimization_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_context_optimization_logs_created_at ON context_optimization_logs(created_at);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'created_at'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'user_gamification' AND column_name = 'updated_at'
-  ) THEN
-    ALTER TABLE public.user_gamification ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
-  END IF;
-END $$;
-
--- ============================================================================
--- FIX 2: ACTIVITY LOGS SCHEMA - Add missing details column
--- ============================================================================
-
-DO $$
-BEGIN
-  -- Create activity_logs table if not exists
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.tables 
-    WHERE table_schema = 'public' AND table_name = 'activity_logs'
-  ) THEN
-    CREATE TABLE public.activity_logs (
-      id BIGSERIAL PRIMARY KEY,
-      user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-      activity_type TEXT NOT NULL,
-      summary TEXT NOT NULL,
-      details JSONB DEFAULT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  END IF;
-
-  -- Add missing details column
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'activity_logs' AND column_name = 'details'
-  ) THEN
-    ALTER TABLE public.activity_logs ADD COLUMN details JSONB DEFAULT NULL;
-  END IF;
-END $$;
-
--- ============================================================================
--- FIX 3: BLOCKS TABLE TIME COLUMNS - Ensure proper TIME format support
--- ============================================================================
-
--- Update blocks table to support proper time handling
-DO $$
-BEGIN
-  -- Check if start_time column exists and is proper type
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'blocks' AND column_name = 'start_time'
-  ) THEN
-    ALTER TABLE public.blocks ADD COLUMN start_time TIME DEFAULT '09:00:00';
-  END IF;
-
-  -- Ensure end_time column exists
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' AND table_name = 'blocks' AND column_name = 'end_time'
-  ) THEN
-    ALTER TABLE public.blocks ADD COLUMN end_time TIME DEFAULT '10:00:00';
-  END IF;
-END $$;
-
--- ============================================================================
--- CREATE INDEXES AND TRIGGERS
--- ============================================================================
-
--- User gamification indexes
-CREATE INDEX IF NOT EXISTS idx_user_gamification_user_id ON public.user_gamification(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_gamification_level ON public.user_gamification(level);
-CREATE INDEX IF NOT EXISTS idx_user_gamification_activity ON public.user_gamification(last_activity_date);
-
--- Activity logs indexes
-CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON public.activity_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_activity_logs_type ON public.activity_logs(activity_type);
-CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON public.activity_logs(created_at);
-
--- Blocks indexes
-CREATE INDEX IF NOT EXISTS idx_blocks_user_id ON public.blocks(user_id);
-CREATE INDEX IF NOT EXISTS idx_blocks_date ON public.blocks(date);
-CREATE INDEX IF NOT EXISTS idx_blocks_start_time ON public.blocks(start_time);
-
--- ============================================================================
--- TRIGGERS FOR AUTOMATIC UPDATES
--- ============================================================================
-
--- Function for updated_at trigger
-CREATE OR REPLACE FUNCTION public.set_updated_at()
+-- Create triggers for updated_at timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ language 'plpgsql';
 
--- User gamification trigger
-DROP TRIGGER IF EXISTS trg_user_gamification_set_updated_at ON public.user_gamification;
-CREATE TRIGGER trg_user_gamification_set_updated_at
-  BEFORE UPDATE ON public.user_gamification
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER update_educational_sources_updated_at BEFORE UPDATE ON educational_sources
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Activity logs trigger (if needed)
-DROP TRIGGER IF EXISTS trg_activity_logs_set_updated_at ON public.activity_logs;
-CREATE TRIGGER trg_activity_logs_set_updated_at
-  BEFORE UPDATE ON public.activity_logs
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER update_educational_knowledge_base_updated_at BEFORE UPDATE ON educational_knowledge_base
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Blocks trigger
-DROP TRIGGER IF EXISTS trg_blocks_set_updated_at ON public.blocks;
-CREATE TRIGGER trg_blocks_set_updated_at
-  BEFORE UPDATE ON public.blocks
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER update_fact_relationships_updated_at BEFORE UPDATE ON fact_relationships
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ============================================================================
--- VERIFICATION QUERY
--- ============================================================================
+CREATE TRIGGER update_conversation_memory_updated_at BEFORE UPDATE ON conversation_memory
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Verify the fixes by checking table structures
+-- Add RLS (Row Level Security) policies
+ALTER TABLE educational_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE educational_knowledge_base ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fact_relationships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversation_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE context_optimization_logs ENABLE ROW LEVEL SECURITY;
+
+-- Policies for educational_sources (public read access)
+CREATE POLICY "Educational sources are viewable by everyone" ON educational_sources
+    FOR SELECT USING (true);
+
+CREATE POLICY "Educational sources are insertable by authenticated users" ON educational_sources
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Educational sources are updatable by authenticated users" ON educational_sources
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Policies for educational_knowledge_base (public read access)
+CREATE POLICY "Educational knowledge base is viewable by everyone" ON educational_knowledge_base
+    FOR SELECT USING (true);
+
+CREATE POLICY "Educational knowledge base is insertable by authenticated users" ON educational_knowledge_base
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Educational knowledge base is updatable by authenticated users" ON educational_knowledge_base
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Policies for conversation_memory (user-specific access)
+CREATE POLICY "Users can view their own conversation memory" ON conversation_memory
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own conversation memory" ON conversation_memory
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own conversation memory" ON conversation_memory
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own conversation memory" ON conversation_memory
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Policies for fact_relationships (public read access)
+CREATE POLICY "Fact relationships are viewable by everyone" ON fact_relationships
+    FOR SELECT USING (true);
+
+CREATE POLICY "Fact relationships are insertable by authenticated users" ON fact_relationships
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Fact relationships are updatable by authenticated users" ON fact_relationships
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Policies for context_optimization_logs (user-specific access)
+CREATE POLICY "Users can view their own optimization logs" ON context_optimization_logs
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own optimization logs" ON context_optimization_logs
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Insert some sample educational content
+INSERT INTO educational_sources (type, title, content, author, reliability, verification_status, educational_relevance) VALUES
+('textbook', 'Introduction to Computer Science', 'Computer science is the study of algorithms, data structures, and computational systems.', 'Dr. Smith', 0.9, 'verified', 0.95),
+('website', 'Khan Academy - Algebra', 'Algebra is a branch of mathematics that uses symbols and letters to represent numbers and quantities in formulas and equations.', 'Khan Academy', 0.85, 'verified', 0.9),
+('academic_paper', 'Machine Learning Fundamentals', 'Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed.', 'Johnson et al.', 0.95, 'verified', 0.98)
+ON CONFLICT DO NOTHING;
+
+-- Insert sample knowledge base entries
+INSERT INTO educational_knowledge_base (title, content, source, reliability, topics, subject, type, educational_value, verification_status) VALUES
+('What is an Algorithm?', 'An algorithm is a step-by-step procedure for solving a problem or accomplishing a task.', 'Introduction to Computer Science', 0.9, ARRAY['algorithms', 'computer science'], 'Computer Science', 'concept', 0.9, 'verified'),
+('Quadratic Formula Explained', 'The quadratic formula is used to solve quadratic equations of the form ax² + bx + c = 0.', 'Khan Academy - Algebra', 0.85, ARRAY['algebra', 'equations', 'mathematics'], 'Mathematics', 'procedure', 0.85, 'verified'),
+('Types of Machine Learning', 'Machine learning algorithms can be categorized into supervised, unsupervised, and reinforcement learning.', 'Machine Learning Fundamentals', 0.95, ARRAY['machine learning', 'algorithms', 'artificial intelligence'], 'Computer Science', 'concept', 0.95, 'verified')
+ON CONFLICT DO NOTHING;
+
+-- Update the educational_knowledge_base entries to reference sources
+UPDATE educational_knowledge_base SET source_id = (
+    SELECT id FROM educational_sources WHERE title = 'Introduction to Computer Science'
+) WHERE content = 'An algorithm is a step-by-step procedure for solving a problem or accomplishing a task.';
+
+UPDATE educational_knowledge_base SET source_id = (
+    SELECT id FROM educational_sources WHERE title = 'Khan Academy - Algebra'
+) WHERE content = 'The quadratic formula is used to solve quadratic equations of the form ax² + bx + c = 0.';
+
+UPDATE educational_knowledge_base SET source_id = (
+    SELECT id FROM educational_sources WHERE title = 'Machine Learning Fundamentals'
+) WHERE content = 'Machine learning algorithms can be categorized into supervised, unsupervised, and reinforcement learning.';
+
+-- Create some fact relationships
+INSERT INTO fact_relationships (fact_id, related_fact_id, relationship_type, relationship_strength, explanation)
 SELECT 
-  'user_gamification' as table_name,
-  column_name,
-  data_type,
-  is_nullable,
-  column_default
-FROM information_schema.columns
-WHERE table_schema = 'public' AND table_name = 'user_gamification'
-  AND column_name IN ('total_penalty_points', 'level', 'experience_points')
-UNION ALL
-SELECT 
-  'activity_logs' as table_name,
-  column_name,
-  data_type,
-  is_nullable,
-  column_default
-FROM information_schema.columns
-WHERE table_schema = 'public' AND table_name = 'activity_logs'
-  AND column_name = 'details'
-ORDER BY table_name, column_name;
+    k1.id,
+    k2.id,
+    'supports',
+    0.8,
+    'Both concepts relate to computational problem-solving'
+FROM educational_knowledge_base k1, educational_knowledge_base k2
+WHERE k1.content = 'An algorithm is a step-by-step procedure for solving a problem or accomplishing a task.'
+  AND k2.content = 'Machine learning algorithms can be categorized into supervised, unsupervised, and reinforcement learning.'
+ON CONFLICT DO NOTHING;
+
+COMMIT;

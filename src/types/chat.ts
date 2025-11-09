@@ -1,209 +1,53 @@
-// Chat-related types for the General Chat system
+// Stubbed Chat types to satisfy legacy imports after removing General Chat
+// This file intentionally defines minimal placeholder types to keep the build green.
+// The General Chat feature has been removed; these are retained only for unused modules/tests.
 
-export interface GeneralChatMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
+export interface ChatRequest {
+  userId?: string;
+  conversationId?: string | null;
+  message?: string;
+  context?: any;
+  preferences?: any;
+}
+
+export interface ChatResponse {
+  content?: string;
   provider?: string;
-  model?: string;
+  model_used?: string;
   tokensUsed?: number;
-  latencyMs?: number;
-  isLoading?: boolean;
-  isError?: boolean;
-  isTimeSensitive?: boolean;
-  webSearchUsed?: boolean;
-  cached?: boolean;
-  language?: 'hinglish' | 'english';
-  contextIncluded?: boolean;
+  metadata?: any;
 }
 
-export interface Conversation {
-  id: string;
-  title: string;
-  chatType: 'general' | 'study_assistant';
-  createdAt: string;
-  updatedAt: string;
-  isArchived?: boolean;
-  messageCount?: number;
-}
+export interface ChatStreamChunk { type?: string; data?: any; }
+export interface StreamingMetadata { provider?: string; model?: string; [k: string]: any }
 
-export interface CreateConversationRequest {
-  userId: string;
-  chatType: 'general' | 'study_assistant';
-}
+export type ProviderStatus = 'healthy' | 'degraded' | 'down' | string;
+export interface ProviderCapabilities { streaming?: boolean; tools?: boolean; [k: string]: any }
+export interface UnifiedProviderConfig { provider?: string; model?: string; [k: string]: any }
+export interface ChatError { code?: string; message?: string; details?: any }
 
-import type { AIProvider } from '@/types/api-test';
-
-export interface SendMessageRequest {
-  userId?: string; // Derived server-side from Supabase JWT
-  conversationId: string;
-  message: string;
-  chatType: 'general' | 'study_assistant';
-  provider?: AIProvider;
-}
-
-export interface SendMessageResponse {
-  success: boolean;
-  data: {
-    response: {
-      content: string;
-      model_used: string;
-      provider_used: string;
-      tokens_used: {
-        input: number;
-        output: number;
-      };
-      latency_ms: number;
-      query_type: 'general' | 'time_sensitive' | 'app_data';
-      web_search_enabled: boolean;
-      fallback_used: boolean;
-      cached: boolean;
-      isTimeSensitive: boolean;
-      language: 'hinglish';
-    };
-    conversationId: string;
-    timestamp: string;
-  };
-  error?: string;
-}
-
-export interface ChatError {
-  code: string;
-  message: string;
-  details?: any;
-  retryAfter?: number;
-}
-
-export interface MessageMetadata {
-  provider: string;
-  model: string;
-  tokensUsed: number;
-  latencyMs: number;
-  webSearchUsed: boolean;
-  cached: boolean;
-  isTimeSensitive: boolean;
-  language: 'hinglish' | 'english';
-}
-
-// API Response Types
-export interface CreateConversationResponse {
-  success: boolean;
-  data: {
-    conversationId: string;
-    title: string;
-    chatType: string;
-    created_at: string;
-  };
-  error?: string;
-}
-
-export interface GetConversationsResponse {
-  success: boolean;
-  data: Conversation[];
-  error?: string;
-}
-
-export interface GetMessagesResponse {
-  success: boolean;
-  data: {
-    conversation: {
-      id: string;
-      title: string;
-      chatType: string;
-      createdAt: string;
-      updatedAt: string;
-      messageCount: number;
-    };
-    messages: GeneralChatMessage[];
-  };
-  error?: string;
-}
-
-export interface DeleteConversationResponse {
-  success: boolean;
-  data: {
-    message: string;
-    deletedConversationId: string;
-    deletedTitle: string;
-  };
-  error?: string;
-}
-
-// Hinglish validation types
-export interface HinglishValidationResult {
-  isValid: boolean;
-  message: string;
-  needsRetry?: boolean;
-}
-
-// Error handling types
-export interface ChatErrorContext {
-  error: Error;
-  conversationId?: string;
-  userMessage?: string;
-  retryCount?: number;
-  canRetry?: boolean;
-}
-
-// Loading states
-export interface ChatLoadingState {
-  isLoadingConversations: boolean;
-  isLoadingMessages: boolean;
-  isSendingMessage: boolean;
-  isCreatingConversation: boolean;
-  isDeletingConversation: boolean;
-}
-
-// UI State types
-export interface ChatUIState {
-  selectedConversation: Conversation | null;
-  inputValue: string;
-  isSidebarOpen: boolean;
-  retryCountdown: number;
-  isFirstMessage: boolean;
-  // Optional in-memory selected provider for UI
-  // Not persisted; defaults to 'groq' in hook
-  
-}
-
-// Provider information types
-export interface ProviderInfo {
+export interface IUnifiedProvider {
   name: string;
-  displayName: string;
-  model: string;
-  isTimeSensitive: boolean;
-  supportsWebSearch: boolean;
+  status?: ProviderStatus;
+  capabilities?: ProviderCapabilities;
+  send?(req: ChatRequest): Promise<ChatResponse>;
+  stream?(req: ChatRequest): AsyncIterable<ChatStreamChunk> | Promise<AsyncIterable<ChatStreamChunk>>;
 }
 
-// Web search types
-export interface WebSearchInfo {
-  enabled: boolean;
-  query: string;
-  timestamp: string;
-  sources?: string[];
+export interface ChatServiceConfig { defaultProvider?: string; fallbackProviders?: string[]; [k: string]: any }
+export interface ProviderPerformanceMetrics { [k: string]: any }
+export interface ChatMetrics { [k: string]: any }
+export interface ChatSession { id?: string; userId?: string; createdAt?: string | Date }
+export interface ChatContext { [k: string]: any }
+export interface UserPreferences { [k: string]: any }
+export interface IChatService {
+  sendMessage(req: ChatRequest): Promise<ChatResponse>;
+  streamMessage?(req: ChatRequest): AsyncIterable<ChatStreamChunk> | Promise<AsyncIterable<ChatStreamChunk>>;
 }
 
-// Cache types
-export interface CacheInfo {
-  isCached: boolean;
-  cacheAge?: number; // in seconds
-  cacheHit: boolean;
-}
+export interface ProviderRegistry { [provider: string]: IUnifiedProvider }
 
-// Rate limiting types
-export interface RateLimitInfo {
-  isLimited: boolean;
-  retryAfter?: number; // in seconds
-  limitType: 'user' | 'provider' | 'global';
-}
-
-// Analytics types
-export interface ChatAnalytics {
-  totalMessages: number;
-  totalTokens: number;
-  averageResponseTime: number;
-  webSearchUsage: number;
-  cacheHitRate: number;
-  userSatisfaction?: number;
-}
+// Legacy types that some UI/tests might reference
+export interface Conversation { id: string; title?: string; createdAt?: string | Date }
+export interface ChatMessage { id?: string; role: 'user' | 'assistant' | 'system'; content: string; timestamp?: string | Date }
+export interface ProviderHealthStatus { provider: string; status: ProviderStatus }

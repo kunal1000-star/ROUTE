@@ -18,7 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ChatPreferences } from '@/app/(app)/chat/page';
+import type { ChatPreferences } from '@/types/study-buddy';
 
 interface ChatInputProps {
   onSendMessage: (content: string, attachments?: File[]) => void;

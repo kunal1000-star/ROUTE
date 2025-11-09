@@ -1,0 +1,178 @@
+{
+  "success": false,
+  "results": {
+    "migrations": [
+      {
+        "name": "Create AI Tables and Extensions",
+        "success": false,
+        "statements": 12,
+        "successCount": 0,
+        "errorCount": 1
+      },
+      {
+        "name": "Setup Row Level Security Policies",
+        "success": false,
+        "statements": 61,
+        "successCount": 0,
+        "errorCount": 26
+      },
+      {
+        "name": "Create Performance Indexes",
+        "success": false,
+        "statements": 37,
+        "successCount": 0,
+        "errorCount": 6
+      },
+      {
+        "name": "Setup Automation Functions and Triggers",
+        "success": false,
+        "statements": 87,
+        "successCount": 0,
+        "errorCount": 67
+      }
+    ],
+    "tests": [
+      {
+        "table": "chat_conversations",
+        "status": "success"
+      },
+      {
+        "table": "chat_messages",
+        "status": "success"
+      },
+      {
+        "table": "study_chat_memory",
+        "status": "success"
+      },
+      {
+        "table": "memory_summaries",
+        "status": "success"
+      },
+      {
+        "table": "student_ai_profile",
+        "status": "success"
+      },
+      {
+        "table": "api_usage_logs",
+        "status": "success"
+      },
+      {
+        "table": "ai_system_prompts",
+        "status": "success"
+      },
+      {
+        "test": "vector_extension",
+        "status": "failed",
+        "error": "Extension not found"
+      },
+      {
+        "test": "system_prompts",
+        "status": "success"
+      }
+    ],
+    "errors": [],
+    "warnings": [
+      "Create AI Tables and Extensions - Statement 2: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 3: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 5: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 7: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 9: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 12: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 14: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 16: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 18: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 21: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 23: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 25: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 27: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 30: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 32: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 34: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 36: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 39: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 41: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 43: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 45: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 48: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 50: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 52: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 54: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 57: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Row Level Security Policies - Statement 59: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Create Performance Indexes - Statement 30: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Create Performance Indexes - Statement 31: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Create Performance Indexes - Statement 32: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Create Performance Indexes - Statement 33: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Create Performance Indexes - Statement 34: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Create Performance Indexes - Statement 35: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 2: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 3: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 4: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 6: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 8: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 10: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 12: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 13: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 14: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 15: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 16: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 18: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 19: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 20: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 21: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 22: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 23: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 24: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 25: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 26: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 27: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 28: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 30: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 31: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 32: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 33: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 34: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 35: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 36: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 37: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 39: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 40: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 41: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 42: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 43: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 44: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 45: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 46: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 50: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 51: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 52: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 54: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 55: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 56: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 57: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 59: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 60: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 61: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 62: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 64: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 65: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 66: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 68: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 70: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 71: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 72: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 73: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 75: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 76: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 78: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 79: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 80: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 82: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 83: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 84: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 85: Could not find the function public.exec_sql(sql) in the schema cache",
+      "Setup Automation Functions and Triggers - Statement 86: Could not find the function public.exec_sql(sql) in the schema cache"
+    ]
+  },
+  "duration": 30.93
+}

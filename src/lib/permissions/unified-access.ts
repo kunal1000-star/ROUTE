@@ -141,7 +141,7 @@ export class UnifiedAccess {
     
     // All endpoints open to authenticated users
     const openEndpoints = [
-      '/api/chat/general/send',
+      
       '/api/chat/study-assistant/send',
       '/api/student/profile',
       '/api/suggestions',

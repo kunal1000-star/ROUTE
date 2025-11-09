@@ -208,7 +208,7 @@ export interface IssuePattern {
 
 export interface IssueExample {
   interactionId: string;
-  originalResponse: string;
+  originalContent: string;
   userFeedback: string;
   corrections: Correction[];
   timestamp: Date;
@@ -638,7 +638,7 @@ export class FeedbackCollector {
           } else {
             issueMap.set(issueKey, {
               id: this.generateIssueId(),
-              type: this.mapCorrectionType(correction.type),
+              type: this.mapCorrectionType(correction.type) as any,
               frequency: 1,
               severity: correction.severity,
               affectedUsers: 1,
@@ -1153,6 +1153,19 @@ export class FeedbackCollector {
     
     return recommendations;
   }
+
+  private mapCorrectionType(correctionType: string): string {
+    const mapping: Record<string, string> = {
+      'factual_error': 'factual_inaccuracy',
+      'incomplete_answer': 'incompleteness',
+      'off_topic': 'relevance_issue',
+      'too_complex': 'complexity_mismatch',
+      'too_simple': 'complexity_mismatch',
+      'style_issue': 'style_issue',
+      'other': 'clarity_problem'
+    };
+    return mapping[correctionType] || 'clarity_problem';
+  }
 }
 
 // Export singleton instance
@@ -1176,3 +1189,12 @@ export const identifyCommonIssues = (feedback: UserFeedback[]) =>
 
 export const correlateFeedbackWithQuality = (feedback: UserFeedback[], qualityScores: any[]) =>
   feedbackCollector.correlateFeedbackWithQuality(feedback, qualityScores);
+
+export interface SatisfactionTrend {
+  userId: string;
+  timeRange: { start: Date; end: Date };
+  scores: Array<{ date: Date; score: number; confidence: number }>;
+  trend: 'improving' | 'declining' | 'stable' | 'volatile';
+  averageScore: number;
+  confidence: number;
+}

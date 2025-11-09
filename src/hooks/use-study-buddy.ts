@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from '@/lib/supabase';
+import { getCurrentUser, supabaseBrowserClient } from '@/lib/supabase';
 import type {
   StudyBuddyState,
   StudyBuddyActions,
@@ -236,7 +236,12 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
   };
 
   const generateConversationId = () => {
-    return `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a proper UUID v4 format
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   };
 
   const generateMessageId = () => {
@@ -301,8 +306,8 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
         includeKnowledge: true,
         includeProgress: true,
         tokenLimit: preferences.maxTokens,
-        subjects: studyContext.topics.length > 0 ? [studyContext.subject] : undefined,
-        topics: studyContext.topics.length > 0 ? studyContext.topics : undefined
+        subjects: (studyContext?.topics?.length ?? 0) > 0 ? [studyContext.subject] : undefined,
+        topics: (studyContext?.topics?.length ?? 0) > 0 ? studyContext.topics : undefined
       };
 
       const context = await buildEnhancedContext(request);
@@ -532,6 +537,13 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
   const handleSendMessage = async (content: string, attachments?: File[]) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
+    // Auth guard: ensure user is signed in before sending
+    if (!userId) {
+      toast({ variant: 'destructive', title: 'Sign in required', description: 'Please sign in to use Study Buddy.' });
+      router.push('/auth');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -567,21 +579,37 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
         getRelevantStudyMemories(content, 3)
       ]);
 
+      // Determine if conversationId is a valid server UUID; if not, let server create it
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const serverConversationIdToSend = currentConversationId && UUID_REGEX.test(currentConversationId) ? currentConversationId : undefined;
+
       // Call Study Assistant API endpoint with enhanced context
       const requestBody: any = {
         userId,
-        conversationId: currentConversationId,
+        conversationId: serverConversationIdToSend,
         message: content,
         chatType: 'study_assistant',
-        isPersonalQuery,
-        // Enhanced Layer 2 data
+        operation: 'chat',
+        sessionId,
+        context: {
+          studyContext,
+          userProfile: profileData || null,
+          learningGoals: preferences?.learningGoals || [],
+          difficulty: (preferences as any)?.difficulty || 'intermediate',
+        },
+        optimizationOptions: {
+          enableCaching: true,
+          enableLoadBalancing: true,
+          enableParameterTuning: true,
+          enableProviderOptimization: true,
+          enableContextOptimization: true,
+          performanceTarget: 'balanced' as const,
+          maxOptimizationTime: 2000,
+        },
+        // Layer 2 data passthrough (optional):
         enhancedContext: enhancedContextForRequest,
         knowledgeBase: knowledgeResults,
         relevantMemories: memoryResults,
-        optimizationRequest: {
-          tokenLimit: preferences.maxTokens,
-          strategy: 'balanced' as OptimizationStrategy
-        }
       };
 
       if (preferences.streamResponses) {
@@ -593,10 +621,20 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
         });
 
         try {
-          const response = await fetch('/api/chat/study-assistant/send', {
+          const session = await supabaseBrowserClient.auth.getSession();
+          const accessToken = session.data.session?.access_token;
+          if (!accessToken) {
+            toast({ variant: 'destructive', title: 'Session expired', description: 'Please sign in again to continue.' });
+            updateMessage(assistantMessageId, { content: 'Please sign in to continue.', streaming: false });
+            setIsLoading(false);
+            router.push('/auth');
+            return;
+          }
+          const response = await fetch('/api/study-buddy', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify(requestBody),
           });
@@ -606,6 +644,11 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
           }
 
           const data: StudyBuddyApiResponse = await response.json();
+
+          // Sync local conversationId with server-assigned UUID
+          if (data?.data?.conversationId) {
+            setConversationId(data.data.conversationId);
+          }
 
           if (data.success && data.data && data.data.response) {
             console.log('✅ Setting assistant message from API response');
@@ -644,10 +687,19 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
         }
       } else {
         // Handle regular (non-streaming) response
-        const response = await fetch('/api/chat/study-assistant/send', {
+        const session2 = await supabaseBrowserClient.auth.getSession();
+        const accessToken2 = session2.data.session?.access_token;
+        if (!accessToken2) {
+          toast({ variant: 'destructive', title: 'Session expired', description: 'Please sign in again to continue.' });
+          setIsLoading(false);
+          router.push('/auth');
+          return;
+        }
+        const response = await fetch('/api/study-buddy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken2}`,
           },
           body: JSON.stringify(requestBody),
         });
@@ -657,6 +709,11 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
         }
 
         const data: StudyBuddyApiResponse = await response.json();
+
+        // Sync local conversationId with server-assigned UUID
+        if (data?.data?.conversationId) {
+          setConversationId(data.data.conversationId);
+        }
 
         if (data.success && data.data && data.data.response) {
           console.log('✅ Setting assistant message from API response (non-streaming)');

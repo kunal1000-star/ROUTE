@@ -9,7 +9,7 @@ import { studentContextBuilder, determineContextLevel } from '../student-context
 import { semanticSearch } from '../semantic-search';
 import { memoryExtractor } from '../memory-extractor';
 import { studyBuddyCache } from '../study-buddy-cache';
-import { aiServiceManager } from '../ai-service-manager';
+import { aiServiceManager } from '../ai-service-manager-unified';
 
 describe('Study Buddy Integration Tests', () => {
   

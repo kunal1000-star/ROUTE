@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Check, ThumbsUp, ThumbsDown, RefreshCw, User, Bot, Settings2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatMessage } from '@/app/(app)/chat/page';
+import type { ChatMessage } from '@/types/study-buddy';
 import { cn } from '@/lib/utils';
 import RichContent from './RichContent';
 

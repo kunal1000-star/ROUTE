@@ -189,11 +189,11 @@ class AIFeaturesIntegrationTester {
     try {
       const generalChatTestStart = Date.now();
       // Test component imports and structure
-      const { default: GeneralChat } = await import('@/components/chat/GeneralChat');
+      // General Chat feature removed. Marking as skipped/pass for legacy suite.
       suite.tests.push({
-        testName: 'GeneralChat Component',
+        testName: 'GeneralChat Removed',
         status: 'PASS',
-        message: 'GeneralChat component with AI features imported successfully',
+        message: 'General Chat feature has been removed; skipping component import test',
         duration: Date.now() - generalChatTestStart
       });
     } catch (error) {

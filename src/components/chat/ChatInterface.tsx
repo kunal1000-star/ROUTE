@@ -7,7 +7,7 @@ import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import { Button } from '@/components/ui/button';
 import { Download, Upload, RotateCcw } from 'lucide-react';
-import type { ChatMessage, ChatPreferences, StudyContext } from '@/app/(app)/chat/page';
+import type { ChatMessage, ChatPreferences, StudyContext } from '@/types/study-buddy';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];

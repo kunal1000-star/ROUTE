@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  try {
+    console.log('Test API route called');
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Test API working',
+      timestamp: new Date().toISOString() 
+    });
+  } catch (error) {
+    console.error('Test API error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('Test POST API called');
+    const body = await request.json();
+    console.log('Request body:', body);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Test POST API working',
+      receivedData: body,
+      timestamp: new Date().toISOString() 
+    });
+  } catch (error) {
+    console.error('Test POST API error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
+  }
+}

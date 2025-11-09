@@ -23,7 +23,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { StudyContext } from '@/app/(app)/chat/page';
+import type { StudyContext } from '@/types/study-buddy';
 
 interface StudyContextPanelProps {
   value: StudyContext;

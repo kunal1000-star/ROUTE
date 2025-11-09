@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { realtimeUsageDashboard } from './realtime-usage-dashboard';
 import { rateLimitManager } from './rate-limit-manager';
-import { aiServiceManager } from './ai-service-manager';
+import { aiServiceManager } from './ai-service-manager-unified';
 
 export interface DashboardUpdate {
   type: 'provider_status' | 'system_health' | 'rate_limits' | 'api_calls' | 'insights' | 'fallback';

@@ -28,7 +28,6 @@ import { Avatar } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { exponentialBackoffRetry } from '@/lib/utils/retry';
-import StreamControls from '@/components/ui/stream-controls';
 import { AIFeaturesEngine } from '@/lib/ai/ai-features-engine';
 import AlertBanner from '@/components/ui/alert-banner';
 import RichContent from '@/components/chat/RichContent';
@@ -82,12 +81,8 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
   const [inputMessage, setInputMessage] = useState('');
   const [isPersonalQuery, setIsPersonalQuery] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [showJump, setShowJump] = useState(false);
-  const [streamCompleted, setStreamCompleted] = useState(false);
-  const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
-  const streamAbortRef = useRef<AbortController | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aiFeaturesActive, setAiFeaturesActive] = useState(false);
@@ -194,102 +189,47 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      const controller = new AbortController();
-      streamAbortRef.current = controller;
-      setIsStreaming(true);
-      setStreamCompleted(false);
-      const res = await exponentialBackoffRetry(() => fetch('/api/chat/study-assistant/stream', {
+      // Use the regular send endpoint (not streaming) that has memory context
+      const res = await fetch('/api/chat/study-assistant/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageText, userId, isPersonalQuery, conversationId: currentConversation?.id }),
-        signal: controller.signal,
-      }), { retries: 2, baseDelayMs: 400, maxDelayMs: 2000, jitter: true, signal: controller.signal });
+        body: JSON.stringify({
+          userId,
+          conversationId: currentConversation?.id,
+          message: messageText,
+          chatType: 'study_assistant',
+          isPersonalQuery
+        })
+      });
 
-      if (!res.body) throw new Error('Failed to open stream');
-
-      const aiMsgId = `ai-${Date.now()}`;
-      setCurrentStreamingMessageId(aiMsgId);
-      setMessages(prev => [...prev, { id: aiMsgId, role: 'assistant', content: '', timestamp: new Date().toISOString(), isLoading: true, streaming: true }]);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      const append = (chunk: string) => {
-        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: m.content + chunk } : m));
-      };
-      let ended = false;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || '';
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line.startsWith('data:')) continue;
-          const payload = line.slice(5).trim();
-          try {
-            const evt = JSON.parse(payload);
-            const w: any = typeof window !== 'undefined' ? window : {};
-            w.__studySeq = w.__studySeq || {};
-            w.__studyTimers = w.__studyTimers || {};
-            if (!w.__studySeq[aiMsgId]) w.__studySeq[aiMsgId] = [];
-            w.__studySeq[aiMsgId].push(evt.type);
-
-            if (evt.type === 'start') {
-              setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, isLoading: true, streaming: true } : m));
-              if (!w.__studyTimers[aiMsgId]) {
-                w.__studyTimers[aiMsgId] = setTimeout(() => {
-                  console.warn('StudyBuddy timeout without content/end', { seq: w.__studySeq[aiMsgId] });
-                  setMessages(prev => prev.map(m => m.id === aiMsgId ? {
-                    ...m,
-                    isLoading: false,
-                    streaming: false,
-                    content: m.content && m.content.length > 0 ? m.content : 'Response timed out. Please try again.'
-                  } : m));
-                  delete w.__studyTimers[aiMsgId];
-                }, 12000);
-              }
-            }
-            if (evt.type === 'content' && typeof evt.data === 'string') {
-              if (w.__studyTimers[aiMsgId]) { clearTimeout(w.__studyTimers[aiMsgId]); delete w.__studyTimers[aiMsgId]; }
-              setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, isLoading: false } : m));
-              append(evt.data);
-            }
-            if (evt.type === 'metadata') {
-              setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, isLoading: false } : m));
-            }
-            if (evt.type === 'end') {
-              ended = true;
-              if (w.__studyTimers[aiMsgId]) { clearTimeout(w.__studyTimers[aiMsgId]); delete w.__studyTimers[aiMsgId]; }
-              setMessages(prev => prev.map(m => m.id === aiMsgId ? {
-                ...m,
-                streaming: false,
-                isLoading: false,
-                content: m.content && m.content.length > 0 ? m.content : 'I couldn\'t generate a response this time. Please try again.'
-              } : m));
-              if (w.__studySeq[aiMsgId] && !w.__studySeq[aiMsgId].includes('content')) {
-                console.warn('StudyBuddy ended without content', { seq: w.__studySeq[aiMsgId] });
-              }
-              delete w.__studySeq[aiMsgId];
-            }
-            if (evt.type === 'error') {
-              if (w.__studyTimers[aiMsgId]) { clearTimeout(w.__studyTimers[aiMsgId]); delete w.__studyTimers[aiMsgId]; }
-              throw new Error(evt.error?.message || 'Stream error');
-            }
-          } catch {}
-        }
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      setIsStreaming(false);
-      setStreamCompleted(true);
-      setCurrentStreamingMessageId(null);
-      // Persist via existing endpoint best-effort
-      exponentialBackoffRetry(() => fetch('/api/chat/study-assistant/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, conversationId: currentConversation?.id, message: messageText, chatType: 'study_assistant', isPersonalQuery })
-      }), { retries: 2, baseDelayMs: 500, maxDelayMs: 2500 }).catch(() => {});
+      const data = await res.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get response');
+      }
+
+      // Add AI response
+      const aiMessage: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        role: 'assistant',
+        content: data.data.response.content,
+        timestamp: new Date().toISOString(),
+        model_used: data.data.response.model_used,
+        provider_used: data.data.response.provider_used,
+        tokens_used: data.data.response.tokens_used,
+        latency_ms: data.data.response.latency_ms
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Update conversation if needed
+      if (data.data.conversationId && !currentConversation) {
+        setCurrentConversation({ id: data.data.conversationId });
+      }
 
       setErrorBanner(null);
     } catch (error) {
@@ -306,9 +246,6 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      setIsStreaming(false);
-      streamAbortRef.current = null;
-      setCurrentStreamingMessageId(null);
     }
   };
 
@@ -584,12 +521,7 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <StreamControls
-                  streaming={isStreaming}
-                  completed={streamCompleted}
-                  onStopKeep={() => { streamAbortRef.current?.abort(); setIsStreaming(false); }}
-                  onStopClear={() => { streamAbortRef.current?.abort(); setIsStreaming(false); if (currentStreamingMessageId) setMessages(prev=>prev.filter(m=>m.id!==currentStreamingMessageId)); }}
-                />
+              {/* Streaming controls removed - now using regular API */}
               <Button
                 variant="outline"
                 size="sm"
@@ -829,14 +761,7 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
                     aria-roledescription="chat message"
                   >
                     <div className="text-sm">
-                        {message.isLoading ? (
-                          <div className="text-muted-foreground flex items-center gap-2">
-                            <span className="inline-block h-3 w-3 rounded-full bg-muted-foreground/50 animate-pulse" />
-                            <span>Getting response...</span>
-                          </div>
-                        ) : (
                           <RichContent text={message.content} />
-                        )}
                       </div>
                     
                     {/* Message metadata for AI responses */}
@@ -948,7 +873,7 @@ export default function StudyBuddy({ userId, className }: StudyBuddyProps) {
               <MessageCircle className="h-4 w-4" />
             </Button>
           </div>
-          {showJump && isStreaming && !autoScroll && (
+          {showJump && !autoScroll && (
             <div className="flex justify-center mt-2">
               <Button size="sm" variant="secondary" onClick={() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }); setShowJump(false); }}>
                 Jump to latest

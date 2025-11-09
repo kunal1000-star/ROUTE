@@ -411,9 +411,8 @@ export class QueryClassifier {
     }
 
     // Calculate overall complexity
-    const overall = Math.min(5, Math.max(1, Math.round(
-      (linguisticScore * 0.2 + conceptualScore * 0.3 + technicalScore * 0.2 + reasoningScore * 0.3)
-    ));
+    const weighted = (linguisticScore * 0.2 + conceptualScore * 0.3 + technicalScore * 0.2 + reasoningScore * 0.3);
+    const overall = Math.min(5, Math.max(1, Math.round(weighted)));
 
     const confidence = factors.length > 0 ? Math.min(0.9, 0.5 + (factors.length * 0.1)) : 0.3;
 

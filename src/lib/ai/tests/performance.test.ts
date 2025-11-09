@@ -2,7 +2,7 @@
 // ===========================================
 
 import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { aiServiceManager } from '../ai-service-manager';
+import { aiServiceManager } from '../ai-service-manager-unified';
 import { responseCache } from '../response-cache';
 import { rateLimitTracker } from '../rate-limit-tracker';
 import { semanticSearch } from '../semantic-search';

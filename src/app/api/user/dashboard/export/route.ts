@@ -111,7 +111,7 @@ async function generateFallbackLog(userId: string, timeRange: string) {
   const fallbackEvents = [
     {
       timestamp: new Date(Date.now() - 120000).toISOString(),
-      featureName: 'General Chat',
+      featureName: 'Study Buddy',
       primaryModel: 'groq:llama-3.3-70b',
       fallbackModel: 'cerebras:llama-3.3-70b',
       reason: 'Rate limit exceeded',

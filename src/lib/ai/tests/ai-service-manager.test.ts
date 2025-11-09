@@ -1,7 +1,7 @@
 // Comprehensive Test Suite for AI Service Manager
 // ==============================================
 
-import { AIServiceManager, aiServiceManager } from '../ai-service-manager';
+import { AIServiceManager, aiServiceManager } from '../ai-service-manager-unified';
 import { queryTypeDetector } from '../query-type-detector';
 import { rateLimitTracker } from '../rate-limit-tracker';
 import { responseCache } from '../response-cache';

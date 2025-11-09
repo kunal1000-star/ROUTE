@@ -5,7 +5,7 @@ import { describe, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll 
 import { ChatService } from '../chat/chat-service';
 import { UnifiedProviderRegistry } from '../chat/provider-registry';
 import { ConfigurationManager } from '../chat/configuration-manager';
-import { aiServiceManager } from '../ai-service-manager';
+import { aiServiceManager } from '../ai-service-manager-unified';
 import type { ChatMessage, ChatRequest, ProviderHealthStatus } from '@/types/chat';
 import type { AIProvider } from '@/types/api-test';
 

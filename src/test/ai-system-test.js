@@ -65,7 +65,7 @@ const testAISystem = async () => {
   console.log('🤖 Test 3: Send Message to AI (General Chat)');
   testsTotal++;
   try {
-    const messageResponse = await fetch(`${baseUrl}/api/chat/general/send`, {
+    const messageResponse = await fetch(`${baseUrl}/api/study-buddy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

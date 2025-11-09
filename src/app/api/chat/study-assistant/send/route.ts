@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
+import { memoryContextProvider } from '@/lib/ai/memory-context-provider';
 import {
   validateStudyResponse,
   checkEducationalFacts,
@@ -164,6 +165,28 @@ export async function POST(request: NextRequest) {
     // Use processed message
     const processedMessage = message;
 
+    // Get memory context for this query
+    let memoryContext = {
+      memories: [] as any[],
+      contextString: '',
+      personalFacts: [] as string[],
+      searchStats: { totalFound: 0, searchTimeMs: 0, provider: 'cohere' as any }
+    };
+
+    try {
+      memoryContext = await memoryContextProvider.getMemoryContext({
+        userId: effectiveUserId,
+        query: processedMessage,
+        chatType: chatType,
+        isPersonalQuery: actualIsPersonalQuery,
+        contextLevel: actualIsPersonalQuery ? 'comprehensive' : 'balanced',
+        limit: actualIsPersonalQuery ? 8 : 5
+      });
+    } catch (memoryError) {
+      console.warn('Failed to get memory context, proceeding without:', memoryError);
+      // Continue without memory context if it fails
+    }
+
     // If no conversationId provided, create new conversation
     let finalConversationId = conversationId as string | null | undefined;
     if (!finalConversationId) {
@@ -204,7 +227,7 @@ export async function POST(request: NextRequest) {
     const { error: userMessageError } = await db2
       .from('chat_messages')
       .insert({
-        conversation_id: finalConversationId,
+        conversation_id: finalConversationId!,
         role: 'user',
         content: processedMessage,
         context_included: actualIsPersonalQuery
@@ -220,10 +243,15 @@ export async function POST(request: NextRequest) {
     let aiResponse: any;
     if (aiServiceManager && initialized) {
       try {
+        // Create enhanced message with memory context
+        const enhancedMessage = memoryContext.contextString
+          ? `${memoryContext.contextString}\n\nCurrent question: ${processedMessage}`
+          : processedMessage;
+
         aiResponse = await aiServiceManager.processQuery({
           userId: effectiveUserId,
-          message: processedMessage,
-          conversationId: finalConversationId,
+          message: enhancedMessage,
+          conversationId: finalConversationId!,
           chatType: 'study_assistant',
           includeAppData: actualIsPersonalQuery
         });
@@ -244,7 +272,7 @@ export async function POST(request: NextRequest) {
     const { error: aiMessageError } = await db3
       .from('chat_messages')
       .insert({
-        conversation_id: finalConversationId,
+        conversation_id: finalConversationId!,
         role: 'assistant',
         content: aiResponse.content,
         model_used: aiResponse.model_used ?? aiResponse.model ?? 'unknown',
@@ -266,7 +294,17 @@ export async function POST(request: NextRequest) {
     await db4
       .from('chat_conversations')
       .update({ updated_at: new Date().toISOString() } as Database['public']['Tables']['chat_conversations']['Update'])
-      .eq('id', finalConversationId);
+      .eq('id', finalConversationId!);
+
+    // Create memory references for the response
+    const memoryReferences = memoryContext.memories.map((memory: any, index: number) => ({
+      id: memory.id,
+      content: memory.content,
+      importance_score: memory.importance_score,
+      relevance: memory.similarity ? `${(memory.similarity * 100).toFixed(0)}%` : 'unknown',
+      tags: memory.tags || [],
+      created_at: memory.created_at
+    }));
 
     // Normalize AI response to expected schema
     const normalized = {
@@ -281,7 +319,7 @@ export async function POST(request: NextRequest) {
       cached: aiResponse.cached ?? false,
       isTimeSensitive: aiResponse.isTimeSensitive ?? false,
       language: 'english' as const,
-      memory_references: [] as any[],
+      memory_references: memoryReferences,
       // Add classification results
       queryClassification: {
         type: actualIsPersonalQuery ? 'personal' : 'general',
@@ -354,6 +392,13 @@ export async function POST(request: NextRequest) {
         response: normalized,
         conversationId: finalConversationId,
         timestamp: new Date().toISOString(),
+        // Include memory context information
+        memoryContext: {
+          memoriesFound: memoryContext.memories.length,
+          searchTimeMs: memoryContext.searchStats.searchTimeMs,
+          personalFacts: memoryContext.personalFacts,
+          searchStats: memoryContext.searchStats
+        },
         // Include basic classification results (Layer 1 equivalent)
         layer1Results: {
           isValid: true,
