@@ -36,7 +36,7 @@ export const mockEndpoints = {
             endpoints: {
               chat: {
                 provider: 'groq',
-                model: 'llama3-8b-8192',
+                model: 'llama-3.1-8b-instant',
                 enabled: true,
                 timeout: 30,
                 testStatus: 'success',
@@ -90,7 +90,7 @@ export const mockEndpoints = {
               },
               webSearch: {
                 provider: 'groq',
-                model: 'llama3-70b-8192',
+                model: 'llama-3.3-70b-versatile',
                 enabled: true,
                 timeout: 50,
                 testStatus: 'success',
@@ -100,7 +100,7 @@ export const mockEndpoints = {
             },
             globalDefaults: {
               provider: 'groq',
-              model: 'llama3-8b-8192'
+              model: 'llama-3.1-8b-instant'
             },
             enableHealthMonitoring: true,
             testAllEndoints: true
@@ -272,7 +272,7 @@ export const mockEndpoints = {
               endpoints: {
                 chat: {
                   provider: 'groq',
-                  model: 'llama3-8b-8192',
+                  model: 'llama-3.1-8b-instant',
                   enabled: true,
                   timeout: 30,
                   testStatus: 'success',
@@ -291,7 +291,7 @@ export const mockEndpoints = {
               },
               globalDefaults: {
                 provider: 'groq',
-                model: 'llama3-8b-8192'
+                model: 'llama-3.1-8b-instant'
               }
             }
           }
@@ -351,7 +351,7 @@ export const mockEndpointTestResponses = {
     data: {
       status: 'online',
       responseTime: 245,
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       provider: 'groq'
     }
   },
@@ -374,9 +374,9 @@ export const mockEndpointTestResponses = {
 
 // Provider-specific model lists for testing
 export const testProviderModels = {
-  groq: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768'],
-  gemini: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
-  cerebras: ['llama3-8b', 'llama3-70b'],
+  groq: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'meta-llama/llama-guard-4-12b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+  cerebras: ['llama3.1-8b', 'llama3.3-70b', 'qwen-3-32b'],
   cohere: ['command-r', 'command-r-plus', 'embed-english-v3.0'],
   mistral: ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest'],
   openrouter: ['llama3.1-8b', 'llama3.1-70b', 'nomic-embed-text-v1.5']
@@ -385,8 +385,8 @@ export const testProviderModels = {
 // Validation test cases
 export const validationTestCases = {
   validProviderModelCombinations: [
-    { provider: 'groq', model: 'llama3-8b-8192' },
-    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'groq', model: 'llama-3.1-8b-instant' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'mistral', model: 'mistral-small-latest' }
   ],
   

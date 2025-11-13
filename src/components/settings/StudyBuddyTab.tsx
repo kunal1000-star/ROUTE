@@ -33,9 +33,9 @@ export default function StudyBuddyTab({ settings, onChange, onRequestSave }: Stu
   const PROVIDERS: AIProvider[] = ['groq', 'gemini', 'cerebras', 'cohere', 'mistral'];
 
   const MODELS: Record<AIProvider, string[]> = {
-    groq: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768', 'llama-3.1-8b-instant', 'llama-3.1-70b-versatile'],
-    gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'],
-    cerebras: ['llama3-8b', 'llama3-70b'],
+    groq: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'meta-llama/llama-guard-4-12b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+    gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+    cerebras: ['llama3.1-8b', 'llama3.3-70b', 'qwen-3-32b'],
     cohere: ['command-r', 'command-r-plus', 'embed-english-v3.0', 'command'],
     mistral: ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest', 'mistral-7b-instruct', 'pixtral-12b']
   };
@@ -241,8 +241,7 @@ export default function StudyBuddyTab({ settings, onChange, onRequestSave }: Stu
   const getModelDescription = (provider: string, model: string) => {
     const descriptions: Record<string, Record<string, string>> = {
       'groq': {
-        'llama3-8b-8192': 'Fast, cost-effective for simple queries',
-        'llama3-70b-8192': 'Powerful for complex reasoning tasks',
+
         'mixtral-8x7b-32768': 'Balanced performance and cost',
         'llama-3.1-8b-instant': 'New Llama 3.1 with fast inference',
         'llama-3.1-70b-versatile': 'Powerful 70B version of Llama 3.1'
@@ -250,13 +249,11 @@ export default function StudyBuddyTab({ settings, onChange, onRequestSave }: Stu
       'gemini': {
         'gemini-2.0-flash': 'Fast responses with good quality',
         'gemini-2.0-flash-lite': 'Lightweight, fastest possible responses',
-        'gemini-1.5-flash': 'Balanced speed and intelligence',
-        'gemini-1.5-pro': 'Highest quality and reasoning',
+
         'gemini-2.5-flash': 'Latest Flash model with advanced capabilities'
       },
       'cerebras': {
-        'llama3-8b': 'Optimized for academic and research workloads',
-        'llama3-70b': 'Higher performance for complex tasks'
+
       },
       'cohere': {
         'command-r': 'Enterprise-grade language model',

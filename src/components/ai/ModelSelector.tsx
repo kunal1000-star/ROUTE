@@ -116,8 +116,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         capabilities: { supportsStreaming: true, supportsFunctionCalling: false, maxTokens: 1000000 }
       },
       {
-        id: 'google/gemini-1.5-flash',
-        name: 'Gemini 1.5 Flash (Free)',
+
         provider: 'Google',
         isFree: true,
         cost: 'Free',

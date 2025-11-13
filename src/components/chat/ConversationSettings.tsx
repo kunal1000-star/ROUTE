@@ -96,8 +96,8 @@ export function ConversationSettings({ settings, onUpdate, className = '' }: Con
 
   const aiModels = {
     groq: ['llama-3.1-8b-instant', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
-    gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'],
-    cerebras: ['llama3.1-8b', 'llama3.1-70b'],
+    gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+    cerebras: ['llama3.1-8b', 'llama3.3-70b', 'qwen-3-32b'],
     mistral: ['mistral-7b-instruct', 'mixtral-8x7b-instruct'],
     cohere: ['command', 'command-light']
   };

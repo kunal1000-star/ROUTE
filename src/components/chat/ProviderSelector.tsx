@@ -83,9 +83,7 @@ const PROVIDER_CONFIG = {
     description: 'Multimodal AI capabilities - All Free Models',
     strength: 'Multimodal & Free',
     models: [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-pro'
+
     ],
     features: ['Image Analysis', 'Code Generation', 'Free Tier'],
   },
@@ -95,7 +93,7 @@ const PROVIDER_CONFIG = {
     color: 'bg-blue-500',
     description: 'High-performance AI chips',
     strength: 'Performance',
-    models: ['llama3.1-8b', 'llama3.1-70b'],
+    models: ['llama3.1-8b', 'llama3.3-70b', 'qwen-3-32b'],
     features: ['High Throughput', 'Large Context'],
   },
   mistral: {

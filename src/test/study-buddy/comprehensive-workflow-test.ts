@@ -486,7 +486,7 @@ describe('Study Buddy Performance Tests', () => {
         'additional-endpoint-1': {
           ...mockStudyBuddySettings.endpoints.chat,
           provider: 'groq',
-          model: 'llama3-8b-8192'
+          model: 'llama-3.1-8b-instant'
         }
       }
     };

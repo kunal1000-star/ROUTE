@@ -4,7 +4,7 @@ export const mockStudyBuddySettings: StudyBuddySettings = {
   endpoints: {
     chat: {
       provider: 'groq',
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       enabled: true,
       timeout: 30,
       testStatus: 'success',
@@ -22,7 +22,7 @@ export const mockStudyBuddySettings: StudyBuddySettings = {
     },
     memoryStorage: {
       provider: 'cerebras',
-      model: 'llama3-8b',
+      model: 'llama3.1-8b',
       enabled: false,
       timeout: 30,
       testStatus: undefined,
@@ -58,7 +58,7 @@ export const mockStudyBuddySettings: StudyBuddySettings = {
     },
     webSearch: {
       provider: 'groq',
-      model: 'llama3-70b-8192',
+      model: 'llama-3.3-70b-versatile',
       enabled: true,
       timeout: 50,
       testStatus: 'success',
@@ -68,7 +68,7 @@ export const mockStudyBuddySettings: StudyBuddySettings = {
   },
   globalDefaults: {
     provider: 'groq',
-    model: 'llama3-8b-8192'
+    model: 'llama-3.1-8b-instant'
   },
   enableHealthMonitoring: true,
   testAllEndoints: true

@@ -28,7 +28,7 @@ export async function analyzeFileContent(
 ): Promise<FileAnalysisResult> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-lite", // Updated to Gemini 2.0 Flash-Lite
+      model: "gemini-2.5-flash", // Updated to Gemini 2.5 Flash
       generationConfig: {
         temperature: 0.1,
         topK: 40,
@@ -107,7 +107,7 @@ export async function analyzeImageContent(
 ): Promise<FileAnalysisResult> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-lite", 
+      model: "gemini-2.5-flash", 
       generationConfig: {
         temperature: 0.1,
         topK: 40,

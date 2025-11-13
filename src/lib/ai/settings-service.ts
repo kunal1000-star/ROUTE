@@ -170,7 +170,7 @@ export const getDefaultUserSettings = (userId: string): UserSettings => ({
       memoryStorage: {
         enabled: true,
         provider: 'groq',
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         timeout: 30,
         retryAttempts: 3,
         fallbackProvider: 'mistral',
@@ -183,12 +183,12 @@ export const getDefaultUserSettings = (userId: string): UserSettings => ({
         timeout: 30,
         retryAttempts: 3,
         fallbackProvider: 'gemini',
-        fallbackModel: 'gemini-1.5-flash'
+        fallbackModel: 'gemini-2.0-flash'
       },
       personalized: {
         enabled: true,
         provider: 'gemini',
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         timeout: 30,
         retryAttempts: 3,
         fallbackProvider: 'mistral',

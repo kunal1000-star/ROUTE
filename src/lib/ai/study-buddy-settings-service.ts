@@ -188,9 +188,9 @@ export class StudyBuddySettingsService {
    */
   getValidModelsForProvider(provider: AIProvider): string[] {
     const modelMap: Record<AIProvider, string[]> = {
-      groq: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768'],
-      gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'],
-      cerebras: ['llama3-8b', 'llama3-70b'],
+      groq: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'meta-llama/llama-guard-4-12b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+      gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+      cerebras: ['llama3.1-8b', 'llama3.3-70b', 'qwen-3-32b'],
       cohere: ['command-r', 'command-r-plus', 'embed-english-v3.0'],
       mistral: ['mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest']
     };

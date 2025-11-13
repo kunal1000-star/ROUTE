@@ -59,14 +59,14 @@ const testAllProviders = async (): Promise<TestResult[]> => {
     },
     {
       provider: 'Gemini',
-      model: 'Gemini 2.0 Flash Lite',
+      model: 'Gemini 2.5 Flash',
       success: true,
       responseTime: 906,
       details: 'Time-sensitive queries with web search'
     },
     {
       provider: 'Cerebras',
-      model: 'Cerebras Llama-3.3-70B',
+      model: 'Cerebras llama3.3-70b',
       success: true,
       responseTime: 479,
       details: 'Ultra-fast Tier 3 fallback'

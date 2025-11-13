@@ -574,7 +574,7 @@ export class AIServiceManager {
     const modelMappings: Record<QueryType, Record<AIProvider, string>> = {
       time_sensitive: {
         groq: 'llama-3.1-8b-instant', // Fast, free model
-        gemini: 'gemini-2.0-flash', // Latest free model (corrected from -lite which doesn't exist)
+        gemini: 'gemini-2.5-flash', // Latest free model
         cerebras: 'llama-3.1-8b', // Fixed: Added dash to match API format
         cohere: 'command', // Actual Cohere free model
         mistral: 'open-mistral-7b', // Free model (actual free model for Mistral)
@@ -583,33 +583,33 @@ export class AIServiceManager {
       },
       app_data: {
         groq: 'llama-3.1-70b-variant', // Free model
-        gemini: 'gemini-2.0-flash', // Latest free model
+        gemini: 'gemini-2.5-flash', // Latest free model
         cerebras: 'llama-3.1-70b', // Fixed: Added dash to match API format
         cohere: 'command', // Actual Cohere free model
         mistral: 'open-mistral-7b', // Free model (actual free model for Mistral)
         openrouter: 'anthropic/claude-3-haiku:free', // Free model (actual OpenRouter free format)
-        google: 'gemini-2.0-flash' // Latest free model
+        google: 'gemini-2.5-flash' // Latest free model
       },
       general: {
         groq: 'llama-3.1-8b-instant', // Free model - default fast model
-        gemini: 'gemini-2.0-flash', // Latest free model (corrected)
+        gemini: 'gemini-2.5-flash', // Latest free model
         cerebras: 'llama-3.1-8b', // Fixed: Added dash to match API format
         cohere: 'command', // Actual Cohere free model
         mistral: 'open-mistral-7b', // Free model (actual free model for Mistral)
         openrouter: 'meta-llama/llama-3.1-8b-instruct:free', // Free model (actual OpenRouter free format)
-        google: 'gemini-2.0-flash' // Latest free model
+        google: 'gemini-2.5-flash' // Latest free model
       }
     };
 
     // Default models for each provider
     const defaultModels: Record<AIProvider, string> = {
       groq: 'llama-3.1-8b-instant',
-      gemini: 'gemini-2.0-flash',
+      gemini: 'gemini-2.5-flash',
       cerebras: 'llama-3.1-8b', // Fixed: Added dash to match API format
       cohere: 'command', // Fixed: Using actual available model
       mistral: 'open-mistral-7b', // Fixed: Using actual free model
       openrouter: 'meta-llama/llama-3.1-8b-instruct:free', // Fixed: Using actual OpenRouter free format
-      google: 'gemini-2.0-flash'
+      google: 'gemini-2.5-flash'
     };
 
     return modelMappings[queryType]?.[provider] || defaultModels[provider] || 'gpt-3.5-turbo';

@@ -41,16 +41,16 @@ export default function SettingsPanel({ userId, onClose }: SettingsPanelProps) {
   const [studyBuddySettings, setStudyBuddySettings] = useState({
     globalDefaults: {
       provider: 'groq',
-      model: 'llama3-8b-8192'
+      model: 'llama-3.1-8b-instant'
     },
     endpoints: {
-      chat: { enabled: true, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
-      embeddings: { enabled: true, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
-      memoryStorage: { enabled: true, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
-      orchestrator: { enabled: true, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
-      personalized: { enabled: true, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
-      semanticSearch: { enabled: true, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
-      webSearch: { enabled: false, provider: 'groq', model: 'llama3-8b-8192', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined }
+      chat: { enabled: true, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
+      embeddings: { enabled: true, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
+      memoryStorage: { enabled: true, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
+      orchestrator: { enabled: true, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
+      personalized: { enabled: true, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
+      semanticSearch: { enabled: true, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined },
+      webSearch: { enabled: false, provider: 'groq', model: 'llama-3.1-8b-instant', timeout: 30, retryAttempts: 3, testStatus: undefined, lastTested: undefined, error: undefined }
     },
     enableHealthMonitoring: true,
     testAllEndoints: true

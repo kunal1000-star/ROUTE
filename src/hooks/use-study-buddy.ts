@@ -233,7 +233,7 @@ export function useStudyBuddy(): EnhancedStudyBuddyState & EnhancedStudyBuddyAct
     const modelMapping: Record<string, string> = {
       'groq': 'llama-3.1-8b-instant',
       'openrouter': 'minimax/minimax-m2:free',
-      'gemini': 'gemini-1.5-flash',
+      'gemini': 'gemini-2.5-flash',
       'cerebras': 'llama3.1-8b',
       'mistral': 'mistral-7b-instruct',
       'cohere': 'command'
